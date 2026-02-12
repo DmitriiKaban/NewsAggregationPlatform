@@ -2,32 +2,35 @@ package md.botservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class NewsEventListener {
 
     private final TelegramBotService botService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @KafkaListener(topics = "news.processed", groupId = "newsbot-core")
-    public void consumeProcessedNews(String message) {
+    public NewsEventListener(TelegramBotService botService) {
+        this.botService = botService;
+    }
+
+    @KafkaListener(topics = "news.notification", groupId = "newsbot-notification-group")
+    public void consumeNotification(String message) {
         try {
             JsonNode json = objectMapper.readTree(message);
+
+            Long userId = json.get("userId").asLong();
             String title = json.get("title").asText();
-            String link = json.get("link").asText();
+            String url = json.get("url").asText();
+            double score = json.get("score").asDouble();
 
-            // 2. Log it
-            System.out.println("✅ Java received processed news: " + title);
+            System.out.println("🚀 Sending Alert to " + userId + " (Match: " + score + ")");
 
-            // 3. Temporary test user id
-             botService.sendNewsAlert(11111111L, title, link);
+            botService.sendNewsAlert(userId, title, url);
 
         } catch (Exception e) {
-            System.err.println("Error processing Kafka message: " + e.getMessage());
+            System.err.println("Error sending notification: " + e.getMessage());
         }
     }
 }

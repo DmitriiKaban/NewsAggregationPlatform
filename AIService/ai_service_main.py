@@ -2,96 +2,137 @@ import json
 import threading
 import os
 import time
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from kafka import KafkaConsumer, KafkaProducer
 from pymongo import MongoClient
-from sentence_transformers import SentenceTransformer
-from pathlib import Path
+from sentence_transformers import SentenceTransformer, util
 
-# 1. Find the .env file in the sibling 'common' directory
+# --- CONFIGURATION ---
 current_dir = Path(__file__).resolve().parent
 env_path = current_dir.parent / 'common' / '.env'
-
-# 2. Load it
-print(f"Loading .env from: {env_path}")
 load_dotenv(dotenv_path=env_path)
 
-# 3. Verify
-print(f"Kafka Broker: {os.getenv('KAFKA_BROKER', 'localhost:9092')}")
+KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'localhost:9092')
+MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME", "mongo_admin")
+MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD", "mongo_pass")
+MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASS}@localhost:27017/?authSource=admin"
+
+# Topics
+TOPIC_NEWS_RAW = "news.raw"
+TOPIC_USER_INTERESTS = "user.interests.updated"
+TOPIC_NOTIFICATIONS = "news.notification"
 
 app = FastAPI()
 
-# Configuration
-MONGO_URI = "mongodb://localhost:27017/"
-KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'localhost:9092')
-RAW_TOPIC = "news.raw"
-PROCESSED_TOPIC = "news.processed"
-MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME", "mongo_admin")
-MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD", "mongo_pass")
-MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASS}@localhost:27017/"
-
-# Initialize Models & DB
-print("Loading ML Model...")
+# Init Resources
+print("⏳ Loading ML Model...")
 model = SentenceTransformer('all-MiniLM-L6-v2')
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client['newsbot_db']
 articles_collection = db['articles']
+users_collection = db['users']
 
 producer = KafkaProducer(
     bootstrap_servers=[KAFKA_BROKER],
     value_serializer=lambda x: json.dumps(x).encode('utf-8')
 )
 
-def process_news_stream():
-    print("🎧 AI Service: Listening for news...")
+def listen_for_user_updates():
+    print("🎧 Listening for User Interests...")
     consumer = KafkaConsumer(
-        RAW_TOPIC,
+        TOPIC_USER_INTERESTS,
         bootstrap_servers=[KAFKA_BROKER],
-        auto_offset_reset='earliest',
-        group_id='ai-service-group',
+        group_id='ai-user-group',
         value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )
 
     for message in consumer:
-        article = message.value
-        title = article.get('title')
-        print(f"Processing: {title}")
+        try:
+            data = message.value
+            user_id = data['userId']
+            interests_text = data['interests']
 
-        # 1. Simple Deduplication Check (by URL or Title)
-        if articles_collection.find_one({"link": article['link']}):
-            print(f"Skipping duplicate: {title}")
-            continue
+            vector = model.encode(interests_text).tolist()
 
-        # 2. Vectorization
-        text_to_vectorize = f"{title} {article.get('summary', '')}"
-        embedding = model.encode(text_to_vectorize).tolist()
+            users_collection.update_one(
+                {"user_id": user_id},
+                {"$set": {"interests_text": interests_text, "vector": vector}},
+                upsert=True
+            )
+            print(f"👤 Updated User {user_id}: {interests_text}")
 
-        # 3. Store in MongoDB
-        doc = {
-            **article,
-            "vector": embedding,
-            "processed_at": time.time()
-        }
-        result = articles_collection.insert_one(doc)
+        except Exception as e:
+            print(f"❌ Error updating user: {e}")
 
-        # 4. Notify Core Service
-        notification = {
-            "article_id": str(result.inserted_id),
-            "title": title,
-            "link": article['link'],
-            "vector": embedding # Optional: send vector if Core does match
-        }
-        producer.send(PROCESSED_TOPIC, value=notification)
-        print(f"Processed & Saved: {title}")
 
-# Run Kafka Consumer in a background thread so FastAPI can still serve health checks
+# NEWS PROCESSOR & MATCHER
+def process_news_stream():
+    print("🎧 Listening for News...")
+    consumer = KafkaConsumer(
+        TOPIC_NEWS_RAW,
+        bootstrap_servers=[KAFKA_BROKER],
+        auto_offset_reset='latest',
+        group_id='ai-news-group',
+        value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+    )
+
+    for message in consumer:
+        try:
+            article = message.value
+            title = article.get('title')
+            link = article.get('link')
+
+            # Deduplication
+            if articles_collection.find_one({"link": link}):
+                continue
+
+            # Vectorize Article
+            text_to_vectorize = f"{title} {article.get('summary', '')}"
+            news_vector = model.encode(text_to_vectorize).tolist()
+
+            # Save Article
+            article_doc = {**article, "vector": news_vector, "processed_at": time.time()}
+            articles_collection.insert_one(article_doc)
+            print(f"📰 Processed News: {title}")
+
+            # MATCHING LOGIC
+            users = list(users_collection.find({}))
+
+            for user in users:
+                user_vector = user.get('vector')
+                if not user_vector: continue
+
+                # Calculate Cosine Similarity
+                similarity = util.cos_sim(news_vector, user_vector).item()
+
+                # Threshold (e.g., 0.4 for loose match, 0.6 for strict)
+                if similarity > 0.35:
+                    notification = {
+                        "userId": user['user_id'],
+                        "title": title,
+                        "url": link,
+                        "score": similarity
+                    }
+                    producer.send(TOPIC_NOTIFICATIONS, value=notification)
+                    print(f"🔔 Match found! User {user['user_id']} (Score: {similarity:.2f})")
+
+        except Exception as e:
+            print(f"❌ Error processing news: {e}")
+
 @app.on_event("startup")
 async def startup_event():
-    t = threading.Thread(target=process_news_stream)
-    t.daemon = True
-    t.start()
+    # News Processing
+    t1 = threading.Thread(target=process_news_stream)
+    t1.daemon = True
+    t1.start()
+
+    # User Updates
+    t2 = threading.Thread(target=listen_for_user_updates)
+    t2.daemon = True
+    t2.start()
 
 @app.get("/health")
 def health():

@@ -1,7 +1,10 @@
 package md.botservice.service;
 
-import lombok.RequiredArgsConstructor;
-import md.botservice.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
+import md.botservice.commands.CommandEffectFactory;
+import md.botservice.commands.CommandStrategy;
+import md.botservice.model.Command;
+import md.botservice.model.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -9,49 +12,64 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+@Slf4j
 @Service
 public class TelegramBotService extends TelegramLongPollingBot {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
+    private final CommandEffectFactory commandFactory;
     private final String botUsername;
 
     public TelegramBotService(
-            UserRepository userRepository,
+            UserService userService,
+            CommandEffectFactory commandFactory,
             @Value("${telegram.bot.username}") String botUsername,
             @Value("${telegram.bot.token}") String botToken
     ) {
         super(botToken);
-        this.userRepository = userRepository;
+        this.userService = userService;
+        this.commandFactory = commandFactory;
         this.botUsername = botUsername;
     }
 
     @Override
     public void onUpdateReceived(Update update) {
-        System.out.println("Received message: " + update.getMessage().getText());
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            long chatId = update.getMessage().getChatId();
-            String messageText = update.getMessage().getText();
+        if (!update.hasMessage() || !update.getMessage().hasText()) return;
 
-            // Basic command handling
-            if (messageText.equals("/start")) {
-                registerUser(update.getMessage().getFrom());
-                sendMessage(chatId, "Welcome to NewsBot! Type your interests.");
-            }
+        long chatId = update.getMessage().getChatId();
+        String text = update.getMessage().getText();
+        var telegramUser = update.getMessage().getFrom();
+
+        try {
+            User user = userService.findOrRegister(telegramUser);
+
+            Command command = Command.of(user, chatId, text);
+
+            CommandStrategy strategy = commandFactory.getStrategy(command);
+            strategy.execute(command, this);
+
+        } catch (Exception e) {
+            log.error("Error processing update", e);
+            sendErrorMessage(chatId);
         }
     }
 
-    private void registerUser(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
-        // Save user to Postgres via userRepository if not exists
+    private void sendErrorMessage(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("⚠️ Sorry, I couldn't understand that command.");
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 
     public void sendNewsAlert(Long chatId, String title, String url) {
-        sendMessage(chatId, "🔥 " + title + "\n" + url);
-    }
-
-    private void sendMessage(Long chatId, String text) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(text);
+        message.setText("🔥 *News Alert:*\n" + title + "\n\n" + url);
+        message.setParseMode("Markdown");
         try {
             execute(message);
         } catch (TelegramApiException e) {
