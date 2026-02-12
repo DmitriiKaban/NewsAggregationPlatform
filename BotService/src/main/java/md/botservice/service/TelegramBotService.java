@@ -2,6 +2,7 @@ package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
 import md.botservice.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -9,13 +10,24 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Service
-@RequiredArgsConstructor
 public class TelegramBotService extends TelegramLongPollingBot {
 
     private final UserRepository userRepository;
+    private final String botUsername;
+
+    public TelegramBotService(
+            UserRepository userRepository,
+            @Value("${telegram.bot.username}") String botUsername,
+            @Value("${telegram.bot.token}") String botToken
+    ) {
+        super(botToken);
+        this.userRepository = userRepository;
+        this.botUsername = botUsername;
+    }
 
     @Override
     public void onUpdateReceived(Update update) {
+        System.out.println("Received message: " + update.getMessage().getText());
         if (update.hasMessage() && update.getMessage().hasText()) {
             long chatId = update.getMessage().getChatId();
             String messageText = update.getMessage().getText();
@@ -48,7 +60,5 @@ public class TelegramBotService extends TelegramLongPollingBot {
     }
 
     @Override
-    public String getBotUsername() { return "YourNewsBotName"; }
-    @Override
-    public String getBotToken() { return "YOUR_BOT_TOKEN"; }
+    public String getBotUsername() { return botUsername; }
 }
