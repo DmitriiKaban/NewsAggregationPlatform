@@ -60,6 +60,17 @@ services:
       - mongo_data:/data/db
 
   # ----------------------------
+  # 5. Redis for scraper
+  # ----------------------------
+  redis:
+    image: redis:alpine
+    container_name: newsbot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # ----------------------------
   # Kafka UI
   # ----------------------------
   kafka-ui:
@@ -76,3 +87,4 @@ services:
 volumes:
   postgres_data_news:
   mongo_data:
+  redis_data:

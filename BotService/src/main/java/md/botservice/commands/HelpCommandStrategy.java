@@ -22,18 +22,23 @@ public class HelpCommandStrategy implements CommandStrategy {
             
             *Here is how to control me:*
             
-            📌 */start*
-            Begin your journey and register.
+            📌 *Basics:*
+            /start - Begin your journey
+            /help - Show this menu
             
-            🎯 */myinterests* `[topics]`
+            🎯 *Personalization:*
+            /myinterests `[topics]`
             Tell me what you love! I will hunt for news matching these keywords.
             
-            ❓ */help*
-            Show this menu again.
+            📚 *Manage Sources:*
+            /addsource `[link]` - Subscribe to a Telegram channel or RSS feed
+            /removesource `[link]` - Unsubscribe from a source
+            /sources - See your active subscriptions
             
             ━━━━━━━━━━━━━━━━
-            *💡 Try it now:*
+            *💡 Examples:*
             `/myinterests Crypto, SpaceX, Java 21`
+            `/addsource https://t.me/jolybells`
             """;
 
         sendMessage(sender, command.chatId(), helpText);

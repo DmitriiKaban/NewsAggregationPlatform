@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "app_users")
@@ -21,4 +23,12 @@ public class User {
     @Column(columnDefinition = "TEXT")
     private String interestsRaw;
     private LocalDateTime registeredAt;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_subscriptions",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "source_id")
+    )
+    private Set<Source> subscriptions = new HashSet<>();
 }

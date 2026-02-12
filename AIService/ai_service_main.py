@@ -3,7 +3,7 @@ import threading
 import os
 import time
 from pathlib import Path
-
+from huggingface_hub import login
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from kafka import KafkaConsumer, KafkaProducer
@@ -24,12 +24,22 @@ MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASS}@localhost:27017/?authSource=ad
 TOPIC_NEWS_RAW = "news.raw"
 TOPIC_USER_INTERESTS = "user.interests.updated"
 TOPIC_NOTIFICATIONS = "news.notification"
+HF_TOKEN = os.getenv('HUGGINGFACE_TOKEN')
 
 app = FastAPI()
 
+
+if HF_TOKEN:
+    print("🔑 Authenticating with Hugging Face...")
+    login(token=HF_TOKEN)
+
+
 # Init Resources
-print("⏳ Loading ML Model...")
-model = SentenceTransformer('all-MiniLM-L6-v2')
+print("⏳ Loading Multilingual Model...")
+model = SentenceTransformer(
+    'paraphrase-multilingual-MiniLM-L12-v2',
+    token=HF_TOKEN
+)
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client['newsbot_db']
 articles_collection = db['articles']
@@ -74,7 +84,7 @@ def process_news_stream():
     consumer = KafkaConsumer(
         TOPIC_NEWS_RAW,
         bootstrap_servers=[KAFKA_BROKER],
-        auto_offset_reset='latest',
+        auto_offset_reset='earliest',
         group_id='ai-news-group',
         value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )

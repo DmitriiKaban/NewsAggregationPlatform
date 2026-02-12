@@ -4,3 +4,7 @@ feedparser
 kafka-python
 schedule
 python-dotenv
+redis
+python-dateutil
+telethon
+psycopg2

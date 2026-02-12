@@ -68,13 +68,28 @@ public class TelegramBotService extends TelegramLongPollingBot {
     public void sendNewsAlert(Long chatId, String title, String url) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("🔥 *News Alert:*\n" + title + "\n\n" + url);
-        message.setParseMode("Markdown");
+
+        message.setParseMode("HTML");
+        String cleanTitle = escapeHtml(title);
+
+        String text = cleanTitle + "\n\n" +
+                "<a href=\"" + url + "\">Read More</a>";
+
+        message.setText(text);
+
         try {
             execute(message);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     @Override

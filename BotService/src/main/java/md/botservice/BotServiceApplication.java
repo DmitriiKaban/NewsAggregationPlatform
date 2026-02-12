@@ -12,6 +12,11 @@ import java.nio.file.Paths;
 public class BotServiceApplication {
 
 	public static void main(String[] args) {
+		loadEnvVariables();
+		SpringApplication.run(BotServiceApplication.class, args);
+	}
+
+	private static void loadEnvVariables() {
 		String commonPath = Paths.get(System.getProperty("user.dir"), "common").toString();
 		try {
 			Dotenv dotenv = Dotenv.configure()
@@ -30,8 +35,5 @@ public class BotServiceApplication {
 			e.printStackTrace();
 			System.exit(1);
 		}
-
-		SpringApplication.run(BotServiceApplication.class, args);
 	}
-
 }
