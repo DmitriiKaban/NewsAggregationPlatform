@@ -1,14 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-    useLaunchParams,
-    miniApp,
-    viewport,
-    initData,
-    mainButton,
-    backButton
-} from '@telegram-apps/sdk-react';
 
-// Extend window type to include Telegram WebApp with all methods
 declare global {
     interface Window {
         Telegram?: {
@@ -19,6 +10,28 @@ declare global {
                 expand: () => void;
                 showAlert?: (message: string, callback?: () => void) => void;
                 showPopup?: (params: { message: string; buttons?: any[] }, callback?: (buttonId: string) => void) => void;
+                initData?: string;
+                initDataUnsafe?: {
+                    user?: {
+                        id?: number;
+                        first_name?: string;
+                        last_name?: string;
+                        username?: string;
+                        language_code?: string;
+                    };
+                    query_id?: string;
+                    auth_date?: number;
+                    hash?: string;
+                };
+                themeParams?: {
+                    bg_color?: string;
+                    text_color?: string;
+                    hint_color?: string;
+                    link_color?: string;
+                    button_color?: string;
+                    button_text_color?: string;
+                    secondary_bg_color?: string;
+                };
                 MainButton: {
                     setText: (text: string) => void;
                     show: () => void;
@@ -39,40 +52,109 @@ declare global {
     }
 }
 
-// Helper function to show messages to user
 const showMessage = (message: string) => {
     const tg = window.Telegram?.WebApp;
 
-    // Try showAlert first
     if (tg?.showAlert) {
         tg.showAlert(message);
-    }
-    // Try showPopup as fallback
-    else if (tg?.showPopup) {
+    } else if (tg?.showPopup) {
         tg.showPopup({ message });
-    }
-    // Console fallback
-    else {
+    } else {
         console.log('📢 Message:', message);
-        alert(message); // Last resort for testing
     }
 };
 
 export default function App() {
-    const lp = useLaunchParams();
-
     const [interests, setInterests] = useState('');
     const [sources, setSources] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState<'interests' | 'sources'>('interests');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [backendReachable, setBackendReachable] = useState(true);
+    const [isTelegramEnvironment, setIsTelegramEnvironment] = useState(false);
+    const [user, setUser] = useState<{ id?: number; first_name?: string; username?: string } | null>(null);
 
-    const user = initData.user();
-    const backendUrl = "https://ydcm33-ip-89-149-92-74.tunnelmole.net/api/users";
+    const backendUrl = "https://tw98ca-ip-89-149-68-82.tunnelmole.net/api/users";
+
+    const tg = window.Telegram?.WebApp;
+    const theme = tg?.themeParams || {};
+
+    const colors = {
+        bg: theme.bg_color || 'var(--tg-theme-bg-color, #ffffff)',
+        text: theme.text_color || 'var(--tg-theme-text-color, #000000)',
+        hint: theme.hint_color || 'var(--tg-theme-hint-color, #999999)',
+        link: theme.link_color || 'var(--tg-theme-link-color, #2481cc)',
+        button: theme.button_color || 'var(--tg-theme-button-color, #2481cc)',
+        buttonText: theme.button_text_color || 'var(--tg-theme-button-text-color, #ffffff)',
+        secondaryBg: theme.secondary_bg_color || 'var(--tg-theme-secondary-bg-color, #f0f0f0)',
+    };
+
+    useEffect(() => {
+        if (tg) {
+            console.log("✅ Telegram WebApp detected");
+            setIsTelegramEnvironment(true);
+
+            try {
+                tg.ready();
+                tg.expand();
+
+                // Try to get user data from initDataUnsafe
+                console.log("🔍 Checking initDataUnsafe:", tg.initDataUnsafe);
+                console.log("🔍 Checking initData:", tg.initData);
+
+                const userData = tg.initDataUnsafe?.user;
+
+                if (userData && userData.id) {
+                    console.log("✅ Found user data:", userData);
+                    setUser({
+                        id: userData.id,
+                        first_name: userData.first_name || 'User',
+                        username: userData.username
+                    });
+                } else {
+                    console.warn("⚠️ No user data in initDataUnsafe, using fallback");
+                    // Try to parse from initData string
+                    if (tg.initData) {
+                        try {
+                            const params = new URLSearchParams(tg.initData);
+                            const userJson = params.get('user');
+                            if (userJson) {
+                                const parsedUser = JSON.parse(userJson);
+                                console.log("✅ Parsed user from initData:", parsedUser);
+                                setUser({
+                                    id: parsedUser.id,
+                                    first_name: parsedUser.first_name || 'User',
+                                    username: parsedUser.username
+                                });
+                                return;
+                            }
+                        } catch (e) {
+                            console.error("❌ Failed to parse initData:", e);
+                        }
+                    }
+
+                    // Last resort: use a default ID for testing
+                    console.warn("⚠️ Using test user ID");
+                    setUser({ id: 938781412, first_name: 'Telegram User' });
+                }
+            } catch (err) {
+                console.error("❌ Error initializing Telegram WebApp:", err);
+                setIsTelegramEnvironment(false);
+                setUser({ id: 938781412, first_name: 'Browser User' });
+            }
+        } else {
+            console.warn("⚠️ Not in Telegram environment");
+            setIsTelegramEnvironment(false);
+            setUser({ id: 938781412, first_name: 'Browser User' });
+        }
+    }, []);
 
     useEffect(() => {
         if (user?.id) {
-            console.log("🚀 Fetching profile for:", user.id);
+            console.log("🚀 Fetching profile for user:", user);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             fetch(`${backendUrl}/${user.id}/profile`, {
                 method: 'GET',
@@ -82,112 +164,94 @@ export default function App() {
                     "Accept": "application/json",
                 },
                 mode: 'cors',
-                credentials: 'omit'
+                credentials: 'omit',
+                signal: controller.signal
             })
                 .then(res => {
+                    clearTimeout(timeoutId);
                     console.log("📡 Response status:", res.status);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
                 .then(data => {
                     console.log("✅ Data received:", data);
 
-                    // Handle interests - can be string or array
                     if (typeof data.interests === 'string') {
                         setInterests(data.interests);
                     } else if (Array.isArray(data.interests)) {
                         setInterests(data.interests.join(', '));
                     }
 
-                    // Handle sources - can be array of strings or objects
                     if (Array.isArray(data.sources)) {
-                        const sourceList = data.sources.map((s: any) =>
-                            typeof s === 'string' ? s : (s.url || s.name || String(s))
-                        );
+                        console.log("📚 Raw sources:", data.sources);
+
+                        const sourceList = data.sources.map((s: any) => {
+                            if (typeof s === 'string') return s;
+                            if (typeof s === 'object' && s !== null) {
+                                return s.url || s.name || s.source || JSON.stringify(s);
+                            }
+                            return String(s);
+                        }).filter(Boolean);
+
+                        console.log("📚 Parsed sources:", sourceList);
                         setSources(sourceList);
+                    } else {
+                        console.warn("⚠️ Sources is not an array:", data.sources);
+                        setSources([]);
                     }
 
                     setLoading(false);
                     setError(null);
+                    setBackendReachable(true);
                 })
                 .catch(err => {
+                    clearTimeout(timeoutId);
                     console.error("❌ Failed to load profile:", err);
-                    setError(err.message);
+
+                    let errorMessage = err.message;
+                    if (err.name === 'AbortError') {
+                        errorMessage = 'Request timed out';
+                    } else if (errorMessage.includes('Failed to fetch')) {
+                        errorMessage = 'Cannot connect to backend';
+                    }
+
+                    setError(errorMessage);
                     setLoading(false);
-                    showMessage(`Connection failed: ${err.message}`);
+                    setBackendReachable(false);
                 });
         } else {
-            console.warn("⚠️ No User ID found. Are you testing outside Telegram?");
             setLoading(false);
-            setError("User ID not found");
+            setError("No user ID");
+            setBackendReachable(false);
         }
-    }, [user?.id]);
+    }, [user?.id, backendUrl]);
 
     useEffect(() => {
-        // Use native Telegram WebApp API
-        const tg = window.Telegram?.WebApp;
-
-        if (tg) {
-            tg.ready();
-            tg.expand();
-        }
-
-        // Also try SDK methods
-        if (miniApp.mount.isAvailable()) {
-            miniApp.mount();
-        }
-        miniApp.ready();
-
-        if (viewport.mount.isAvailable()) {
-            viewport.mount();
-            viewport.expand();
-        }
-
-        if (miniApp.setHeaderColor.isAvailable()) {
-            miniApp.setHeaderColor('#1c1c1e');
-        }
-    }, []);
-
-    // Handle back button
-    useEffect(() => {
-        const tg = window.Telegram?.WebApp;
+        if (!isTelegramEnvironment) return;
 
         const handleBack = () => setActiveTab('interests');
 
         if (activeTab !== 'interests') {
-            // Try both native and SDK
             tg?.BackButton.show();
             tg?.BackButton.onClick(handleBack);
-
-            if (backButton.mount.isAvailable()) {
-                backButton.mount();
-                backButton.show();
-                backButton.onClick(handleBack);
-            }
 
             return () => {
                 tg?.BackButton.offClick(handleBack);
                 tg?.BackButton.hide();
-                if (backButton.offClick) {
-                    backButton.offClick(handleBack);
-                }
             };
         } else {
             tg?.BackButton.hide();
-            if (backButton.hide) {
-                backButton.hide();
-            }
         }
-    }, [activeTab]);
+    }, [activeTab, isTelegramEnvironment]);
 
-    // Handle main button
     useEffect(() => {
-        const tg = window.Telegram?.WebApp;
+        if (!isTelegramEnvironment) return;
 
         const handleSaveInterests = async () => {
-            if (!user?.id) return;
-
-            console.log("💾 Saving interests:", interests);
+            if (!user?.id || !backendReachable) {
+                showMessage('⚠️ Cannot save - backend not reachable');
+                return;
+            }
 
             try {
                 const response = await fetch(`${backendUrl}/${user.id}/interests`, {
@@ -202,58 +266,37 @@ export default function App() {
                     body: JSON.stringify({ interest: interests })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Failed to save: ${response.status}`);
-                }
-
-                console.log("✅ Interests saved successfully");
-                showMessage('✅ Interests saved successfully!');
-
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                showMessage('✅ Interests saved!');
             } catch (err: any) {
-                console.error("❌ Failed to save interests:", err);
-                showMessage(`Failed to save: ${err.message}`);
+                showMessage(`Failed: ${err.message}`);
             }
         };
 
         if (activeTab === 'interests' && interests.trim()) {
-            // Native API
             if (tg?.MainButton) {
                 tg.MainButton.setText('Save Interests');
                 tg.MainButton.enable();
                 tg.MainButton.show();
                 tg.MainButton.onClick(handleSaveInterests);
-            }
 
-            // SDK API
-            if (mainButton.mount.isAvailable()) {
-                mainButton.mount();
-                mainButton.setParams({
-                    text: 'Save Interests',
-                    isEnabled: true,
-                    isVisible: true
-                });
-                mainButton.onClick(handleSaveInterests);
+                return () => {
+                    tg.MainButton.offClick(handleSaveInterests);
+                };
             }
-
-            return () => {
-                tg?.MainButton.offClick(handleSaveInterests);
-                if (mainButton.offClick) {
-                    mainButton.offClick(handleSaveInterests);
-                }
-            };
         } else {
             tg?.MainButton.hide();
-            if (mainButton.setParams) {
-                mainButton.setParams({ isVisible: false });
-            }
         }
-    }, [activeTab, interests, user?.id]);
+    }, [activeTab, interests, user?.id, backendReachable, backendUrl, isTelegramEnvironment]);
 
     const handleAddSource = async () => {
-        const input = prompt('Enter channel name (e.g. durov or @point_md):');
-        if (input && user?.id) {
-            console.log("➕ Adding source:", input);
+        if (!backendReachable) {
+            showMessage('⚠️ Backend not reachable');
+            return;
+        }
 
+        const input = prompt('Enter channel (e.g. durov or @channel):');
+        if (input && user?.id) {
             try {
                 const response = await fetch(`${backendUrl}/${user.id}/sources`, {
                     method: 'POST',
@@ -267,26 +310,18 @@ export default function App() {
                     body: JSON.stringify({ source: input })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Failed to add source: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-                // Update UI optimistically
                 setSources([...sources, input]);
-                console.log("✅ Source added successfully");
                 showMessage('✅ Source added!');
-
             } catch (err: any) {
-                console.error("❌ Failed to add source:", err);
-                showMessage(`Failed to add source: ${err.message}`);
+                showMessage(`Failed: ${err.message}`);
             }
         }
     };
 
     const handleRemoveSource = async (source: string, index: number) => {
-        if (!user?.id) return;
-
-        console.log("🗑️ Removing source:", source);
+        if (!backendReachable || !user?.id) return;
 
         try {
             const response = await fetch(`${backendUrl}/${user.id}/sources?url=${encodeURIComponent(source)}`, {
@@ -300,76 +335,54 @@ export default function App() {
                 credentials: 'omit'
             });
 
-            if (!response.ok) {
-                throw new Error(`Failed to remove source: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            // Update UI
             setSources(sources.filter((_, idx) => idx !== index));
-            console.log("✅ Source removed successfully");
-
         } catch (err: any) {
-            console.error("❌ Failed to remove source:", err);
-            showMessage(`Failed to remove: ${err.message}`);
+            showMessage(`Failed: ${err.message}`);
         }
     };
 
-    const firstName = user?.first_name || 'User';
+    const handleSaveClick = async () => {
+        if (!user?.id || !backendReachable) {
+            alert('⚠️ Backend not reachable');
+            return;
+        }
 
-    // Loading state
+        try {
+            const response = await fetch(`${backendUrl}/${user.id}/interests`, {
+                method: 'POST',
+                headers: {
+                    "ngrok-skip-browser-warning": "69420",
+                    "Content-Type": "application/json",
+                },
+                mode: 'cors',
+                credentials: 'omit',
+                body: JSON.stringify({ interest: interests })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            alert('✅ Saved!');
+        } catch (err: any) {
+            alert(`Failed: ${err.message}`);
+        }
+    };
+
+    const firstName = user?.first_name || 'there';
+
     if (loading) {
         return (
             <div style={{
                 minHeight: '100vh',
-                background: 'var(--tg-theme-bg-color, #fff)',
-                color: 'var(--tg-theme-text-color, #000)',
+                background: colors.bg,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
             }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-                    <div>Loading your profile...</div>
-                </div>
-            </div>
-        );
-    }
-
-    // Error state with retry
-    if (error) {
-        return (
-            <div style={{
-                minHeight: '100vh',
-                background: 'var(--tg-theme-bg-color, #fff)',
-                color: 'var(--tg-theme-text-color, #000)',
-                padding: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-            }}>
-                <div style={{ textAlign: 'center', maxWidth: '300px' }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
-                    <div style={{ marginBottom: '8px', fontWeight: '600' }}>Connection Error</div>
-                    <div style={{ fontSize: '14px', color: 'var(--tg-theme-hint-color, #999)', marginBottom: '16px' }}>
-                        {error}
-                    </div>
-                    <button
-                        onClick={() => window.location.reload()}
-                        style={{
-                            padding: '12px 24px',
-                            background: 'var(--tg-theme-button-color, #007aff)',
-                            color: 'var(--tg-theme-button-text-color, #fff)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '15px',
-                            fontWeight: '500',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Retry
-                    </button>
+                <div style={{ textAlign: 'center', color: colors.text }}>
+                    <div style={{ fontSize: '64px', marginBottom: '24px' }}>📰</div>
+                    <div style={{ fontSize: '18px', fontWeight: '500' }}>Loading your feed...</div>
                 </div>
             </div>
         );
@@ -378,212 +391,306 @@ export default function App() {
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'var(--tg-theme-bg-color, #fff)',
-            color: 'var(--tg-theme-text-color, #000)',
-            padding: '16px',
+            background: colors.bg,
+            color: colors.text,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}>
             {/* Header */}
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{
+                padding: '20px',
+                borderBottom: `1px solid ${colors.hint}40`
+            }}>
+                {!isTelegramEnvironment && (
+                    <div style={{
+                        background: `${colors.link}20`,
+                        border: `1px solid ${colors.link}40`,
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                        color: colors.link,
+                        fontSize: '13px'
+                    }}>
+                        <strong>ℹ️ Browser Mode</strong> - Open in Telegram for full features
+                    </div>
+                )}
+
+                {error && (
+                    <div style={{
+                        background: '#ff980020',
+                        border: '1px solid #ff980040',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                        fontSize: '13px'
+                    }}>
+                        <strong style={{ color: '#ff9800' }}>⚠️ Offline Mode</strong>
+                        <div style={{ fontSize: '12px', marginTop: '4px', color: colors.hint }}>{error}</div>
+                        <button
+                            onClick={() => window.location.reload()}
+                            style={{
+                                marginTop: '8px',
+                                padding: '6px 12px',
+                                background: colors.button,
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: colors.buttonText,
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                fontWeight: '500'
+                            }}
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
+
                 <h1 style={{
                     fontSize: '28px',
-                    fontWeight: '600',
-                    margin: '0 0 8px 0'
+                    fontWeight: '700',
+                    margin: '0 0 8px 0',
+                    color: colors.text
                 }}>
-                    Welcome, {firstName}! 👋
+                    Hey, {firstName}! 👋
                 </h1>
                 <p style={{
                     fontSize: '15px',
-                    color: 'var(--tg-theme-hint-color, #999)',
+                    color: colors.hint,
                     margin: 0
                 }}>
-                    Manage your news preferences
+                    Your personalized news hub
                 </p>
             </div>
 
-            {/* Tab Navigation */}
+            {/* Tabs */}
             <div style={{
                 display: 'flex',
-                gap: '8px',
-                marginBottom: '24px',
-                borderBottom: '1px solid var(--tg-theme-section-separator-color, #e5e5ea)'
+                borderBottom: `2px solid ${colors.hint}20`,
+                background: colors.secondaryBg
             }}>
                 <TabButton
                     active={activeTab === 'interests'}
                     onClick={() => setActiveTab('interests')}
+                    colors={colors}
                 >
                     🎯 Interests
                 </TabButton>
                 <TabButton
                     active={activeTab === 'sources'}
                     onClick={() => setActiveTab('sources')}
+                    colors={colors}
                 >
                     📚 Sources
+                    {sources.length > 0 && (
+                        <span style={{
+                            marginLeft: '6px',
+                            background: colors.button,
+                            color: colors.buttonText,
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '600'
+                        }}>
+                            {sources.length}
+                        </span>
+                    )}
                 </TabButton>
             </div>
 
             {/* Content */}
-            {activeTab === 'interests' ? (
-                <div>
-                    <label style={{
-                        display: 'block',
-                        fontSize: '15px',
-                        fontWeight: '500',
-                        marginBottom: '8px'
-                    }}>
-                        What topics interest you?
-                    </label>
-                    <textarea
-                        value={interests}
-                        onChange={(e) => setInterests(e.target.value)}
-                        placeholder="e.g., AI, Crypto, Space, Tech..."
-                        style={{
-                            width: '100%',
-                            minHeight: '120px',
-                            padding: '12px',
-                            fontSize: '16px',
-                            border: '1px solid var(--tg-theme-section-separator-color, #e5e5ea)',
-                            borderRadius: '12px',
-                            background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
-                            color: 'var(--tg-theme-text-color, #000)',
-                            fontFamily: 'inherit',
-                            resize: 'vertical',
-                            boxSizing: 'border-box'
-                        }}
-                    />
-                    <p style={{
-                        fontSize: '13px',
-                        color: 'var(--tg-theme-hint-color, #999)',
-                        marginTop: '8px'
-                    }}>
-                        Separate topics with commas. We'll find news matching your interests.
-                    </p>
-                </div>
-            ) : (
-                <div>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '16px'
-                    }}>
-                        <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '600' }}>
-                            Your Sources
-                        </h3>
-                        <button
-                            onClick={handleAddSource}
-                            style={{
-                                padding: '8px 16px',
-                                background: 'var(--tg-theme-button-color, #007aff)',
-                                color: 'var(--tg-theme-button-text-color, #fff)',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '15px',
-                                fontWeight: '500',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            + Add Source
-                        </button>
-                    </div>
-
-                    {sources.length === 0 ? (
-                        <div style={{
-                            padding: '40px 20px',
-                            textAlign: 'center',
-                            color: 'var(--tg-theme-hint-color, #999)'
+            <div style={{ padding: '20px' }}>
+                {activeTab === 'interests' ? (
+                    <div>
+                        <label style={{
+                            display: 'block',
+                            fontSize: '15px',
+                            fontWeight: '600',
+                            marginBottom: '12px',
+                            color: colors.text
                         }}>
-                            <p style={{ fontSize: '40px', margin: '0 0 12px 0' }}>📭</p>
-                            <p style={{ margin: 0 }}>No sources yet. Add one to get started!</p>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {sources.map((source, i) => (
-                                <div key={i} style={{
-                                    padding: '12px',
-                                    background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
-                                    borderRadius: '12px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
-                                }}>
-                                    <span style={{ fontSize: '15px', wordBreak: 'break-all' }}>{source}</span>
-                                    <button
-                                        onClick={() => handleRemoveSource(source, i)}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: 'var(--tg-theme-destructive-text-color, #ff3b30)',
-                                            fontSize: '15px',
-                                            cursor: 'pointer',
-                                            padding: '4px 8px',
-                                            marginLeft: '8px',
-                                            flexShrink: 0
-                                        }}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+                            What topics interest you?
+                        </label>
+                        <textarea
+                            value={interests}
+                            onChange={(e) => setInterests(e.target.value)}
+                            placeholder="AI, Crypto, Space, Tech..."
+                            style={{
+                                width: '100%',
+                                minHeight: '120px',
+                                padding: '14px',
+                                fontSize: '15px',
+                                border: `1px solid ${colors.hint}40`,
+                                borderRadius: '12px',
+                                fontFamily: 'inherit',
+                                resize: 'vertical',
+                                boxSizing: 'border-box',
+                                background: colors.secondaryBg,
+                                color: colors.text,
+                                outline: 'none'
+                            }}
+                        />
+                        <p style={{
+                            fontSize: '13px',
+                            color: colors.hint,
+                            marginTop: '8px'
+                        }}>
+                            💡 Separate topics with commas
+                        </p>
 
-            {/* Debug info */}
-            <details style={{
-                marginTop: '40px',
-                fontSize: '12px',
-                color: 'var(--tg-theme-hint-color, #999)'
-            }}>
-                <summary>Debug Info</summary>
-                <pre style={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
-                    fontSize: '11px',
-                    marginTop: '8px'
-                }}>
-                    {JSON.stringify({
-                        userId: user?.id,
-                        username: user?.username,
-                        firstName: user?.first_name,
-                        platform: lp.platform,
-                        hasNativeAPI: !!window.Telegram?.WebApp,
-                        hasShowAlert: !!window.Telegram?.WebApp?.showAlert,
-                        backendUrl: backendUrl,
-                        error: error
-                    }, null, 2)}
-                </pre>
-            </details>
+                        {!isTelegramEnvironment && interests.trim() && (
+                            <button
+                                onClick={handleSaveClick}
+                                disabled={!backendReachable}
+                                style={{
+                                    marginTop: '16px',
+                                    padding: '14px 24px',
+                                    background: backendReachable ? colors.button : colors.hint,
+                                    color: colors.buttonText,
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    fontSize: '15px',
+                                    fontWeight: '600',
+                                    cursor: backendReachable ? 'pointer' : 'not-allowed',
+                                    width: '100%'
+                                }}
+                            >
+                                💾 Save Interests
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '16px'
+                        }}>
+                            <h3 style={{
+                                margin: 0,
+                                fontSize: '17px',
+                                fontWeight: '600',
+                                color: colors.text
+                            }}>
+                                Your Sources
+                            </h3>
+                            <button
+                                onClick={handleAddSource}
+                                disabled={!backendReachable}
+                                style={{
+                                    padding: '10px 16px',
+                                    background: backendReachable ? colors.button : colors.hint,
+                                    color: colors.buttonText,
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: backendReachable ? 'pointer' : 'not-allowed'
+                                }}
+                            >
+                                + Add
+                            </button>
+                        </div>
+
+                        {sources.length === 0 ? (
+                            <div style={{
+                                padding: '40px 20px',
+                                textAlign: 'center',
+                                background: colors.secondaryBg,
+                                borderRadius: '12px',
+                                border: `2px dashed ${colors.hint}40`
+                            }}>
+                                <div style={{ fontSize: '48px', marginBottom: '12px', opacity: 0.5 }}>📭</div>
+                                <p style={{
+                                    margin: 0,
+                                    color: colors.hint,
+                                    fontSize: '15px'
+                                }}>
+                                    {backendReachable
+                                        ? 'No sources yet. Add one!'
+                                        : 'Cannot load - offline'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {sources.map((source, i) => (
+                                    <div key={i} style={{
+                                        padding: '14px',
+                                        background: colors.secondaryBg,
+                                        borderRadius: '12px',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        border: `1px solid ${colors.hint}20`
+                                    }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            flex: 1,
+                                            minWidth: 0
+                                        }}>
+                                            <span style={{
+                                                fontSize: '20px',
+                                                marginRight: '10px'
+                                            }}>
+                                                📡
+                                            </span>
+                                            <span style={{
+                                                fontSize: '15px',
+                                                color: colors.text,
+                                                wordBreak: 'break-all',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis'
+                                            }}>
+                                                {source}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRemoveSource(source, i)}
+                                            disabled={!backendReachable}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: backendReachable ? '#f44336' : colors.hint,
+                                                fontSize: '13px',
+                                                fontWeight: '600',
+                                                cursor: backendReachable ? 'pointer' : 'not-allowed',
+                                                padding: '8px 12px',
+                                                marginLeft: '10px',
+                                                borderRadius: '6px',
+                                                flexShrink: 0
+                                            }}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
 
-function TabButton({
-                       active,
-                       onClick,
-                       children
-                   }: {
+function TabButton({ active, onClick, children, colors }: {
     active: boolean;
     onClick: () => void;
     children: React.ReactNode;
+    colors: any;
 }) {
     return (
         <button
             onClick={onClick}
             style={{
                 flex: 1,
-                padding: '12px',
+                padding: '14px 12px',
                 background: 'transparent',
                 border: 'none',
-                borderBottom: active
-                    ? '2px solid var(--tg-theme-button-color, #007aff)'
-                    : '2px solid transparent',
-                color: active
-                    ? 'var(--tg-theme-button-color, #007aff)'
-                    : 'var(--tg-theme-hint-color, #999)',
+                borderBottom: active ? `3px solid ${colors.button}` : '3px solid transparent',
+                color: active ? colors.button : colors.hint,
                 fontSize: '15px',
-                fontWeight: '500',
+                fontWeight: '600',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
             }}
