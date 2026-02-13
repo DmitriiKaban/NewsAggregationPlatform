@@ -1,9 +1,9 @@
 package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
-import md.botservice.model.Source;
-import md.botservice.model.SourceType;
-import md.botservice.model.User;
+import md.botservice.models.Source;
+import md.botservice.models.SourceType;
+import md.botservice.models.User;
 import md.botservice.repository.SourceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

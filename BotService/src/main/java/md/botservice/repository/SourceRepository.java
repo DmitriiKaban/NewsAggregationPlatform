@@ -1,6 +1,6 @@
 package md.botservice.repository;
 
-import md.botservice.model.Source;
+import md.botservice.models.Source;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

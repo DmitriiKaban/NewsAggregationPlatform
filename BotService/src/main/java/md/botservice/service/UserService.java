@@ -1,7 +1,7 @@
 package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
-import md.botservice.model.User;
+import md.botservice.models.User;
 import md.botservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -29,5 +29,9 @@ public class UserService {
 
     public void updateUser(User user) {
         repository.save(user);
+    }
+
+    public User findById(Long userId) {
+        return repository.findById(userId).orElseThrow(() -> new UserNotFoundException("Couldn't find user with id: " + userId));
     }
 }

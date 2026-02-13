@@ -1,4 +1,4 @@
-package md.botservice.model;
+package md.botservice.models;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

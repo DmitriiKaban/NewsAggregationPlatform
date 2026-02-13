@@ -1,9 +1,9 @@
 package md.botservice.config;
 
 import lombok.RequiredArgsConstructor;
-import md.botservice.model.Source;
-import md.botservice.model.SourceType;
-import md.botservice.model.TrustLevel;
+import md.botservice.models.Source;
+import md.botservice.models.SourceType;
+import md.botservice.models.TrustLevel;
 import md.botservice.repository.SourceRepository;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.CommandLineRunner;

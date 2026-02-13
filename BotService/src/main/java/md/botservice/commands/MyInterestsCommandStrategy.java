@@ -2,9 +2,9 @@ package md.botservice.commands;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import md.botservice.model.Command;
-import md.botservice.model.TelegramCommands;
-import md.botservice.model.User;
+import md.botservice.models.Command;
+import md.botservice.models.TelegramCommands;
+import md.botservice.models.User;
 import md.botservice.service.UserService;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;

@@ -1,4 +1,4 @@
-package md.botservice.model;
+package md.botservice.models;
 
 public enum SourceType {
     TELEGRAM, RSS

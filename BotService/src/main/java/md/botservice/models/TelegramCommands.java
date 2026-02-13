@@ -1,12 +1,15 @@
-package md.botservice.model;
+package md.botservice.models;
 
 public enum TelegramCommands {
-    START,
-    HELP,
-    MY_INTERESTS,
-    ADD_SOURCE,
-    REMOVE_SOURCE,
-    LIST_SOURCES;
+    START("/start"),
+    HELP("/help"),
+    MY_INTERESTS("/myinterests"),
+    ADD_SOURCE("/addsource"),
+    REMOVE_SOURCE("/removesource"),
+    LIST_SOURCES("/sources"),
+    WEBAPP("/webapp");
+
+    TelegramCommands(String str) {}
 
     public static TelegramCommands getCommand(String rawCommand) {
         if (rawCommand == null) return null;

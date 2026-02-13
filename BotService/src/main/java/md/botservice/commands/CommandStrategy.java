@@ -1,7 +1,7 @@
 package md.botservice.commands;
 
-import md.botservice.model.Command;
-import md.botservice.model.TelegramCommands;
+import md.botservice.models.Command;
+import md.botservice.models.TelegramCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;

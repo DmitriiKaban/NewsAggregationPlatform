@@ -2,8 +2,8 @@ package md.botservice.commands;
 
 import lombok.RequiredArgsConstructor;
 import md.botservice.exceptions.CommandNotSupportedException;
-import md.botservice.model.Command;
-import md.botservice.model.TelegramCommands;
+import md.botservice.models.Command;
+import md.botservice.models.TelegramCommands;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
