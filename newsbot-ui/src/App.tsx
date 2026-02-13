@@ -68,7 +68,7 @@ export default function App() {
     const [error, setError] = useState<string | null>(null);
 
     const user = initData.user();
-    const backendUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api/users";
+    const backendUrl = "https://ydcm33-ip-89-149-92-74.tunnelmole.net/api/users";
 
     useEffect(() => {
         if (user?.id) {

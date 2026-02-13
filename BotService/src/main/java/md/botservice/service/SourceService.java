@@ -42,7 +42,16 @@ public class SourceService {
 
     @Transactional
     public void unsubscribeUser(User user, String url) {
-        user.getSubscriptions().removeIf(s -> s.getUrl().equals(url));
+
+        String fullUrl;
+        // todo: use regex, improve versatility
+        if (!url.startsWith("https://t.me/s/")) {
+            fullUrl = "https://t.me/s/" + url;
+        } else {
+            fullUrl = url;
+        }
+
+        user.getSubscriptions().removeIf(s -> s.getUrl().equals(fullUrl));
         userService.updateUser(user);
     }
 

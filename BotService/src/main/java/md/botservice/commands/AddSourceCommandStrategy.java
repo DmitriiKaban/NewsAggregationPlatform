@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import md.botservice.models.Command;
 import md.botservice.models.TelegramCommands;
 import md.botservice.service.SourceService;
+import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ForceReplyKeyboard;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 
 @Component
@@ -23,17 +26,45 @@ public class AddSourceCommandStrategy implements CommandStrategy {
         String url = command.commandParam();
 
         if (url == null || url.isEmpty()) {
-            sendMessage(sender, command.chatId(),
-                    "⚠️ *Ошибка:* Укажите ссылку.\nПример: `/addsource https://t.me/s/durov`");
+            sendForceReply(sender, command.chatId(), "🔗 *Paste Telegram channel name");
             return;
         }
 
         try {
             sourceService.subscribeUser(command.user(), url);
-            sendMessage(sender, command.chatId(),
-                    "✅ *Источник добавлен!*\nЯ буду следить за новостями от:\n`" + url + "`");
+            sendSuccessMessage(sender, command.chatId(), "✅ *Source Added!*");
         } catch (Exception e) {
-            sendMessage(sender, command.chatId(), "❌ Не удалось добавить источник. Проверьте ссылку.");
+            sendMessage(sender, command.chatId(), "❌ Invalid Link.");
+        }
+    }
+
+    private void sendSuccessMessage(AbsSender sender, Long chatId, String text) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        message.setParseMode("Markdown");
+
+        message.setReplyMarkup(KeyboardHelper.getMainMenuKeyboard());
+
+        try {
+            sender.execute(message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendForceReply(AbsSender sender, Long chatId, String text) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        message.setParseMode("Markdown");
+
+        message.setReplyMarkup(new ForceReplyKeyboard(true));
+
+        try {
+            sender.execute(message);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

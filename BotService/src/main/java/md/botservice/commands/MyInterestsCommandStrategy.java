@@ -1,27 +1,21 @@
 package md.botservice.commands;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import md.botservice.models.Command;
 import md.botservice.models.TelegramCommands;
-import md.botservice.models.User;
 import md.botservice.service.UserService;
-import org.springframework.kafka.core.KafkaTemplate;
+import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ForceReplyKeyboard;
 import org.telegram.telegrambots.meta.bots.AbsSender;
-import tools.jackson.databind.ObjectMapper;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.HashMap;
-import java.util.Map;
-
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MyInterestsCommandStrategy implements CommandStrategy {
 
     private final UserService userService;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Override
     public boolean supports(TelegramCommands command) {
@@ -30,34 +24,43 @@ public class MyInterestsCommandStrategy implements CommandStrategy {
 
     @Override
     public void execute(Command command, AbsSender sender) {
-        String interests = command.commandParam();
-        User user = command.user();
+        if (command.commandParam() != null && !command.commandParam().isEmpty()) {
+            userService.updateInterests(command.user().getId(), command.commandParam());
 
-        if (interests == null || interests.trim().isEmpty()) {
-            sendMessage(sender, command.chatId(),
-                    "⚠️ *Missing Topics*\n\nPlease type your interests after the command.\n\n*Example:*\n`/myinterests Stock Market, AI, Formula 1`");
+            sendSuccessMessage(sender, command.chatId(),
+                    "✅ *Interests Updated!* \nI'll look for news about: " + command.commandParam());
             return;
         }
 
-        user.setInterestsRaw(interests);
-        userService.updateUser(user);
+        sendForceReply(sender, command.chatId(),
+                "🎯 *What are you interested in?*\n\nReply to this message with keywords separated by commas.\n_Example: AI, Politics MD, Formula 1_");
+    }
+
+    private void sendSuccessMessage(AbsSender sender, Long chatId, String text) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        message.setParseMode("Markdown");
+        message.setReplyMarkup(KeyboardHelper.getMainMenuKeyboard()); // Restore buttons
 
         try {
-            Map<String, Object> event = new HashMap<>();
-            event.put("userId", user.getId());
-            event.put("interests", interests);
+            sender.execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
 
-            String jsonEvent = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send("user.interests.updated", jsonEvent);
+    private void sendForceReply(AbsSender sender, Long chatId, String text) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        message.setParseMode("Markdown");
+        message.setReplyMarkup(new ForceReplyKeyboard(true)); // Force user to reply
 
-            sendMessage(sender, command.chatId(),
-                    "✅ *Interests Saved!*\n\nI will now look for news about:\n`" + interests + "`");
-
-            log.info("Updated interests for user: {}", user.getId());
-
-        } catch (Exception e) {
-            log.error("Failed to send Kafka event for user {}", user.getId(), e);
-            sendMessage(sender, command.chatId(), "❌ *System Error*\n\nCould not save interests. Please try again later.");
+        try {
+            sender.execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
 }
