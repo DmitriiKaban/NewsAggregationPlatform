@@ -18,6 +18,11 @@ public class SourceService {
     @Transactional
     public void subscribeUser(User user, String url) {
         String cleanUrl = url.trim();
+
+        // todo: use regex, improve versatility
+        if (!url.startsWith("https://t.me/s/")) {
+            cleanUrl = "https://t.me/s/" + cleanUrl;
+        }
         Source source = findOrSaveSource(cleanUrl);
 
         user.getSubscriptions().add(source);

@@ -1,5 +1,11 @@
 package md.botservice.models;
 
+import lombok.Getter;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Getter
 public enum TelegramCommands {
     START("/start"),
     HELP("/help"),
@@ -9,20 +15,32 @@ public enum TelegramCommands {
     LIST_SOURCES("/sources"),
     WEBAPP("/webapp");
 
-    TelegramCommands(String str) {}
+    private final String command;
+
+    private static final Map<String, TelegramCommands> LOOKUP = new HashMap<>();
+
+    static {
+        for (TelegramCommands cmd : values()) {
+            LOOKUP.put(normalize(cmd.command), cmd);
+        }
+
+        LOOKUP.put("LISTSOURCES", LIST_SOURCES);
+    }
+
+    TelegramCommands(String command) {
+        this.command = command;
+    }
 
     public static TelegramCommands getCommand(String rawCommand) {
-        if (rawCommand == null) return null;
-        String normalized = rawCommand.startsWith("/") ? rawCommand.substring(1).toUpperCase() : rawCommand.toUpperCase();
+        if (rawCommand == null || rawCommand.isBlank()) {
+            return null;
+        }
+        return LOOKUP.get(normalize(rawCommand));
+    }
 
-        return switch (normalized) {
-            case "START" -> START;
-            case "HELP" -> HELP;
-            case "MYINTERESTS" -> MY_INTERESTS;
-            case "ADDSOURCE" -> ADD_SOURCE;
-            case "REMOVESOURCE" -> REMOVE_SOURCE;
-            case "SOURCES", "LISTSOURCES" -> LIST_SOURCES;
-            default -> null;
-        };
+    private static String normalize(String input) {
+        return input.trim()
+                .replace("/", "")
+                .toUpperCase();
     }
 }

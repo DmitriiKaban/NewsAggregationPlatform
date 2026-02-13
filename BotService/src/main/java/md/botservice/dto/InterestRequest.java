@@ -1,3 +1,3 @@
-package md.botservice.requests;
+package md.botservice.dto;
 
 public record InterestRequest(String interest) {}

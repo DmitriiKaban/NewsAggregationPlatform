@@ -1,7 +1,5 @@
 package md.botservice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.models.User;
@@ -11,6 +9,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.webapp.WebAppData;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
@@ -37,7 +37,7 @@ public class WebAppDataHandler {
         log.info("Received web app data: {}", data);
 
         try {
-            JsonNode json = objectMapper.readTree(data);
+            tools.jackson.databind.JsonNode json = objectMapper.readTree(data);
             String action = json.get("action").asText();
 
             User user = userService.findOrRegister(update.getMessage().getFrom());

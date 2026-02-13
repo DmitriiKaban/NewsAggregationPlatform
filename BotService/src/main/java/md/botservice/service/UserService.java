@@ -1,11 +1,14 @@
 package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
+import md.botservice.dto.UserProfileResponse;
+import md.botservice.exceptions.UserNotFoundException;
 import md.botservice.models.User;
 import md.botservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,22 @@ public class UserService {
         user.setFirstName(telegramUser.getFirstName());
         user.setRegisteredAt(LocalDateTime.now());
         return repository.save(user);
+    }
+
+    public UserProfileResponse getUserProfile(Long userId) {
+        User user = findById(userId);
+
+        List<UserProfileResponse.SourceDto> sourceDtos = user.getSubscriptions().stream()
+                .map(s -> new UserProfileResponse.SourceDto(s.getName(), s.getUrl()))
+                .toList();
+
+        return new UserProfileResponse(user.getInterestsRaw(), sourceDtos);
+    }
+
+    public void updateInterests(Long userId, String rawInterests) {
+        User user = findById(userId);
+        user.setInterestsRaw(rawInterests);
+        repository.save(user);
     }
 
     public void updateUser(User user) {
