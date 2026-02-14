@@ -28,32 +28,32 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedSources() {
         List<Source> defaults = List.of(
-                // --- 🇲🇩 MOLDOVA OFFICIAL & NEWS ---
+                // --- MOLDOVA OFFICIAL & NEWS ---
                 create("Moldpres", "https://www.moldpres.md/config/rss.php?lang=rom", SourceType.RSS, TrustLevel.OFFICIAL),
                 create("Ziarul de Gardă", "https://t.me/zdgmd", SourceType.TELEGRAM, TrustLevel.VERIFIED_MEDIA),
                 create("Point News", "https://t.me/PointNews", SourceType.TELEGRAM, TrustLevel.VERIFIED_MEDIA),
                 create("Agora.md", "https://t.me/agoramd", SourceType.TELEGRAM, TrustLevel.VERIFIED_MEDIA),
 
-                // --- 🏆 SPORT (Diverse) ---
+                // --- SPORT ---
                 create("ESPN Top News", "https://www.espn.com/espn/rss/news", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Motorsport.com", "https://www.motorsport.com/rss/f1/news/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Tennis.com", "http://www.tennis.com/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
-                // --- 👗 FASHION & LIFESTYLE ---
+                // --- FASHION & LIFESTYLE ---
                 create("Vogue", "https://www.vogue.com/feed/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Elle Romania", "https://www.elle.ro/feed/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Hypebeast", "https://hypebeast.com/feeds/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Business of Fashion", "https://www.businessoffashion.com/feeds/all", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
-                // --- 💻 TECH & SCIENCE ---
+                // --- TECH & SCIENCE ---
                 create("TechCrunch", "https://techcrunch.com/feed/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("The Verge", "https://www.theverge.com/rss/index.xml", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("ScienceDaily", "https://www.sciencedaily.com/rss/top/science.xml", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
-                // --- 🏥 HEALTH ---
+                // --- HEALTH ---
                 create("Medical News Today", "https://www.medicalnewstoday.com/feed", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
-                // --- 🌍 WORLD NEWS ---
+                // --- WORLD NEWS ---
                 create("BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml", SourceType.RSS, TrustLevel.VERIFIED_MEDIA)
         );
 

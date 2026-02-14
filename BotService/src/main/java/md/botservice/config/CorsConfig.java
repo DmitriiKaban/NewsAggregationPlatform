@@ -7,6 +7,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class CorsConfig {
@@ -16,19 +17,18 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOriginPatterns(Arrays.asList(
-                "*",  // CHANGE IN PRODUCTION!
+                "*",  // todo: update before deploying
                 "https://*.ngrok-free.dev",
                 "https://web.telegram.org",
                 "https://telegram.org",
                 "https://*.github.io"
         ));
 
-        // Allow credentials (cookies, authorization headers)
         config.setAllowCredentials(false);
 
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 
-        config.setAllowedHeaders(Arrays.asList("*"));
+        config.setAllowedHeaders(List.of("*"));
 
         config.setExposedHeaders(Arrays.asList(
                 "Authorization",

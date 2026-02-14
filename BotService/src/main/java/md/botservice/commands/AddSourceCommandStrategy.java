@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import md.botservice.models.Command;
 import md.botservice.models.TelegramCommands;
 import md.botservice.service.SourceService;
+import md.botservice.utils.FormatUtils;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 
@@ -23,17 +24,17 @@ public class AddSourceCommandStrategy implements CommandStrategy {
         String url = command.commandParam();
 
         if (url == null || url.isEmpty()) {
-            sendMessage(sender, command.chatId(),
-                    "⚠️ *Ошибка:* Укажите ссылку.\nПример: `/addsource https://t.me/s/durov`");
+            sendForceReply(sender, command.chatId(),
+                    "*Add a News Source*\n\nReply with a Telegram channel link or name.\n\nExample: `https://t.me/durov` or simply `durov`");
             return;
         }
 
         try {
             sourceService.subscribeUser(command.user(), url);
-            sendMessage(sender, command.chatId(),
-                    "✅ *Источник добавлен!*\nЯ буду следить за новостями от:\n`" + url + "`");
+            sendWithMainMenu(sender, command.chatId(),
+                    "✅ *Source Added!*\n\nI'll monitor news from:\n`" + FormatUtils.escapeMarkdownV2(url) + "`");
         } catch (Exception e) {
-            sendMessage(sender, command.chatId(), "❌ Не удалось добавить источник. Проверьте ссылку.");
+            sendWithMainMenu(sender, command.chatId(), "❌ Failed to add source. Please check the URL.");
         }
     }
 }

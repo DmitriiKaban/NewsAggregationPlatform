@@ -23,11 +23,15 @@ public class RemoveSourceCommandStrategy implements CommandStrategy {
         String url = command.commandParam();
 
         if (url == null || url.isEmpty()) {
-            sendMessage(sender, command.chatId(), "⚠️ Укажите ссылку для удаления.\nПример: `/removesource https://t.me/s/durov`");
+            sendForceReply(sender, command.chatId(), "🗑 *Paste the link of the source to remove:*");
             return;
         }
 
-        sourceService.unsubscribeUser(command.user(), url);
-        sendMessage(sender, command.chatId(), "🗑 Источник удален из ваших подписок.");
+        try {
+            sourceService.unsubscribeUser(command.user(), url);
+            sendWithMainMenu(sender, command.chatId(), "✅ *Source Removed!*");
+        } catch (Exception e) {
+            sendWithMainMenu(sender, command.chatId(), "⚠️ Could not find that source in your list.");
+        }
     }
 }

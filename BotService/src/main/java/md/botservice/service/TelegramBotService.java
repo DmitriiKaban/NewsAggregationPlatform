@@ -19,12 +19,18 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final UserService userService;
     private final CommandEffectFactory commandFactory;
     private final WebAppDataHandler webAppDataHandler;
+    private final CallbackQueryHandler callbackQueryHandler;
+    private final UserStateManager stateManager;
+    private final StateMessageHandler stateMessageHandler;
     private final String botUsername;
 
     public TelegramBotService(
             UserService userService,
             CommandEffectFactory commandFactory,
             WebAppDataHandler webAppDataHandler,
+            CallbackQueryHandler callbackQueryHandler,
+            UserStateManager stateManager,
+            StateMessageHandler stateMessageHandler,
             @Value("${telegram.bot.username}") String botUsername,
             @Value("${telegram.bot.token}") String botToken
     ) {
@@ -32,20 +38,30 @@ public class TelegramBotService extends TelegramLongPollingBot {
         this.userService = userService;
         this.commandFactory = commandFactory;
         this.webAppDataHandler = webAppDataHandler;
+        this.callbackQueryHandler = callbackQueryHandler;
+        this.stateManager = stateManager;
+        this.stateMessageHandler = stateMessageHandler;
         this.botUsername = botUsername;
     }
 
     @Override
     public void onUpdateReceived(Update update) {
         try {
-            // Handle Web App data (sent from Mini App)
+            // Handle inline keyboard button clicks
+            if (update.hasCallbackQuery()) {
+                log.info("Received callback query");
+                callbackQueryHandler.handleCallbackQuery(update.getCallbackQuery(), this);
+                return;
+            }
+
+            // Handle Web App data
             if (update.hasMessage() && update.getMessage().getWebAppData() != null) {
                 log.info("Received web app data from chat {}", update.getMessage().getChatId());
                 webAppDataHandler.handleWebAppData(update, this);
                 return;
             }
 
-            // Handle regular text messages and commands
+            // Handle regular text messages
             if (!update.hasMessage() || !update.getMessage().hasText()) {
                 return;
             }
@@ -54,10 +70,18 @@ public class TelegramBotService extends TelegramLongPollingBot {
             String text = update.getMessage().getText();
             var telegramUser = update.getMessage().getFrom();
 
-            // Handle button texts (from ReplyKeyboard)
+            User user = userService.findOrRegister(telegramUser);
+
+            // Check if user is in a state awaiting input
+            if (stateManager.isAwaitingInput(user.getId())) {
+                log.info("User {} is awaiting input, current state: {}", user.getId(), stateManager.getState(user.getId()));
+                stateMessageHandler.handleStateMessage(user, text, chatId, this);
+                return;
+            }
+
+            // Handle ReplyKeyboard
             text = mapButtonTextToCommand(text);
 
-            User user = userService.findOrRegister(telegramUser);
             Command command = Command.of(user, chatId, text);
 
             CommandStrategy strategy = commandFactory.getStrategy(command);
@@ -71,9 +95,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
         }
     }
 
-    /**
-     * Map button texts from ReplyKeyboard to actual commands
-     */
     private String mapButtonTextToCommand(String text) {
         return switch (text) {
             case "📚 My Sources" -> "/sources";

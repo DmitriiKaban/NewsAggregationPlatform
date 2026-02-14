@@ -1,15 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/NewsAggregationPlatform/', // Must match your GitHub repo name
+  base: '/NewsAggregationPlatform/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    // Ensure proper chunk size for Telegram
     rollupOptions: {
       output: {
         manualChunks: {
@@ -21,6 +19,6 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: true // Allow external connections for ngrok testing
+    host: true
   }
 })

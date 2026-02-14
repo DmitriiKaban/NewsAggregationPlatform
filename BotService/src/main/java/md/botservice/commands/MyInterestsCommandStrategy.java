@@ -1,27 +1,23 @@
 package md.botservice.commands;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import md.botservice.models.Command;
 import md.botservice.models.TelegramCommands;
 import md.botservice.models.User;
 import md.botservice.service.UserService;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.bots.AbsSender;
-import tools.jackson.databind.ObjectMapper;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MyInterestsCommandStrategy implements CommandStrategy {
 
     private final UserService userService;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Override
     public boolean supports(TelegramCommands command) {
@@ -30,34 +26,55 @@ public class MyInterestsCommandStrategy implements CommandStrategy {
 
     @Override
     public void execute(Command command, AbsSender sender) {
-        String interests = command.commandParam();
-        User user = command.user();
+        if (command.commandParam() != null && !command.commandParam().isEmpty()) {
+            userService.updateInterests(command.user().getId(), command.commandParam());
 
-        if (interests == null || interests.trim().isEmpty()) {
-            sendMessage(sender, command.chatId(),
-                    "⚠️ *Missing Topics*\n\nPlease type your interests after the command.\n\n*Example:*\n`/myinterests Stock Market, AI, Formula 1`");
+            sendWithMainMenu(sender, command.chatId(),
+                    "✅ *Interests Updated!*\n\nI'll now look for news about:\n`" + command.commandParam() + "`");
             return;
         }
 
-        user.setInterestsRaw(interests);
-        userService.updateUser(user);
+        showCurrentInterestsWithButtons(sender, command.chatId(), command.user());
+    }
 
-        try {
-            Map<String, Object> event = new HashMap<>();
-            event.put("userId", user.getId());
-            event.put("interests", interests);
+    public void confirmKeepInterests(AbsSender sender, Long chatId) {
+        sendWithMainMenu(sender, chatId, "✅ *Interests Kept*\n\nYour interests remain unchanged.");
+    }
 
-            String jsonEvent = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send("user.interests.updated", jsonEvent);
+    private void showCurrentInterestsWithButtons(AbsSender sender, Long chatId, User user) {
+        String currentInterests = user.getInterestsRaw();
 
-            sendMessage(sender, command.chatId(),
-                    "✅ *Interests Saved!*\n\nI will now look for news about:\n`" + interests + "`");
+        String text = (currentInterests == null || currentInterests.trim().isEmpty())
+                ? "🎯 *Your Interests*\n\nYou haven't set any interests yet.\n\nWhat would you like to do?"
+                : "🎯 *Your Current Interests:*\n\n`" + currentInterests + "`\n\nWhat would you like to do?";
 
-            log.info("Updated interests for user: {}", user.getId());
+        InlineKeyboardMarkup markup = buildButtonsLayout(currentInterests);
 
-        } catch (Exception e) {
-            log.error("Failed to send Kafka event for user {}", user.getId(), e);
-            sendMessage(sender, command.chatId(), "❌ *System Error*\n\nCould not save interests. Please try again later.");
+        sendMessage(sender, chatId, text, markup);
+    }
+
+    private static InlineKeyboardMarkup buildButtonsLayout(String currentInterests) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        // Row 1: Update
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        InlineKeyboardButton updateBtn = new InlineKeyboardButton();
+        updateBtn.setText("✏️ Update Interests");
+        updateBtn.setCallbackData("update_interests");
+        row1.add(updateBtn);
+        rows.add(row1);
+
+        // Row 2: Keep (only if interests exist)
+        if (currentInterests != null && !currentInterests.trim().isEmpty()) {
+            List<InlineKeyboardButton> row2 = new ArrayList<>();
+            InlineKeyboardButton keepBtn = new InlineKeyboardButton();
+            keepBtn.setText("✅ Keep as is");
+            keepBtn.setCallbackData("keep_interests");
+            row2.add(keepBtn);
+            rows.add(row2);
         }
+        markup.setKeyboard(rows);
+        return markup;
     }
 }

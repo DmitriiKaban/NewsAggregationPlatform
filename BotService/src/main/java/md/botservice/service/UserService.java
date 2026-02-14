@@ -1,6 +1,7 @@
 package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
+import md.botservice.dto.SourceDto;
 import md.botservice.dto.UserProfileResponse;
 import md.botservice.exceptions.UserNotFoundException;
 import md.botservice.models.User;
@@ -33,11 +34,11 @@ public class UserService {
     public UserProfileResponse getUserProfile(Long userId) {
         User user = findById(userId);
 
-        List<UserProfileResponse.SourceDto> sourceDtos = user.getSubscriptions().stream()
-                .map(s -> new UserProfileResponse.SourceDto(s.getName(), s.getUrl()))
+        List<SourceDto> sourceDtos = user.getSubscriptions().stream()
+                .map(s -> new SourceDto(s.getName(), s.getUrl()))
                 .toList();
 
-        return new UserProfileResponse(user.getInterestsRaw(), sourceDtos);
+        return new UserProfileResponse(user.getFirstName(), user.getLastName(), user.getInterestsRaw(), sourceDtos);
     }
 
     public void updateInterests(Long userId, String rawInterests) {

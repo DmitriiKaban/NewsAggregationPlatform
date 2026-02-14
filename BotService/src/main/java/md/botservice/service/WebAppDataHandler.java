@@ -1,16 +1,17 @@
 package md.botservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.models.User;
+import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.webapp.WebAppData;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
@@ -21,26 +22,22 @@ public class WebAppDataHandler {
     private final SourceService sourceService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Process data sent from the Mini App via Telegram.WebApp.sendData()
-     */
     public void handleWebAppData(Update update, AbsSender sender) {
-        // Check if message has web app data
-        if (!update.hasMessage() || update.getMessage().getWebAppData() == null) {
-            return;
-        }
+        WebAppData webAppData = update.getMessage().getWebAppData();
+
+        if (webAppData == null) return;
 
         long chatId = update.getMessage().getChatId();
-        WebAppData webAppData = update.getMessage().getWebAppData();
         String data = webAppData.getData();
+        var telegramUser = update.getMessage().getFrom();
 
-        log.info("Received web app data: {}", data);
+        log.info("Web app data from user {}: {}", telegramUser.getId(), data);
 
         try {
-            tools.jackson.databind.JsonNode json = objectMapper.readTree(data);
-            String action = json.get("action").asText();
+            User user = userService.findOrRegister(telegramUser);
+            JsonNode json = objectMapper.readTree(data);
 
-            User user = userService.findOrRegister(update.getMessage().getFrom());
+            String action = json.path("action").asText();
 
             switch (action) {
                 case "save_interests" -> handleSaveInterests(user, json, chatId, sender);
@@ -51,78 +48,51 @@ public class WebAppDataHandler {
 
         } catch (Exception e) {
             log.error("Error processing web app data", e);
-            sendErrorMessage(chatId, sender);
+            sendResponse(sender, chatId, "❌ Something went wrong processing your request.");
         }
     }
 
     private void handleSaveInterests(User user, JsonNode json, long chatId, AbsSender sender) {
-        String interests = json.get("interests").asText();
-
-        log.info("Updating interests for user {}: {}", user.getId(), interests);
+        String interests = json.path("interests").asText();
 
         user.setInterestsRaw(interests);
         userService.updateUser(user);
 
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("✅ *Interests Updated!*\n\nI'll now look for news about:\n`" + interests + "`");
-        message.setParseMode("Markdown");
-
-        try {
-            sender.execute(message);
-        } catch (TelegramApiException e) {
-            log.error("Failed to send confirmation", e);
-        }
+        sendResponse(sender, chatId,
+                "✅ *Interests Updated!*\n\nI'll now look for news about:\n`" + interests + "`");
     }
 
     private void handleAddSource(User user, JsonNode json, long chatId, AbsSender sender) {
-        String url = json.get("url").asText();
-
-        log.info("Adding source for user {}: {}", user.getId(), url);
+        String url = json.path("url").asText();
+        if (url.isEmpty()) url = json.path("source").asText();
 
         try {
             sourceService.subscribeUser(user, url);
-
-            SendMessage message = new SendMessage();
-            message.setChatId(String.valueOf(chatId));
-            message.setText("✅ *Source Added!*\n\nNow following: `" + url + "`");
-            message.setParseMode("Markdown");
-            sender.execute(message);
-
+            sendResponse(sender, chatId, "✅ *Source Added!*\n\nNow following: `" + url + "`");
         } catch (Exception e) {
-            log.error("Failed to add source", e);
-            sendErrorMessage(chatId, sender);
+            log.error("Failed to add source via WebApp", e);
+            sendResponse(sender, chatId, "❌ Failed to add source. It might be invalid or duplicate.");
         }
     }
 
     private void handleRemoveSource(User user, JsonNode json, long chatId, AbsSender sender) {
-        String url = json.get("url").asText();
-
-        log.info("Removing source for user {}: {}", user.getId(), url);
-
+        String url = json.path("url").asText();
         sourceService.unsubscribeUser(user, url);
-
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("🗑 Source removed: `" + url + "`");
-        message.setParseMode("Markdown");
-
-        try {
-            sender.execute(message);
-        } catch (TelegramApiException e) {
-            log.error("Failed to send confirmation", e);
-        }
+        sendResponse(sender, chatId, "🗑 Source removed: `" + url + "`");
     }
 
-    private void sendErrorMessage(long chatId, AbsSender sender) {
+    private void sendResponse(AbsSender sender, long chatId, String text) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("❌ Something went wrong. Please try again.");
+        message.setText(text);
+        message.setParseMode("Markdown");
+
+        message.setReplyMarkup(KeyboardHelper.getMainMenuKeyboard());
 
         try {
             sender.execute(message);
         } catch (TelegramApiException e) {
-            log.error("Failed to send error message", e);
+            log.error("Failed to send WebApp confirmation", e);
         }
     }
 }
