@@ -5,6 +5,7 @@ import md.botservice.models.Source;
 import md.botservice.models.SourceType;
 import md.botservice.models.User;
 import md.botservice.repository.SourceRepository;
+import md.botservice.utils.FormatUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,12 +18,7 @@ public class SourceService {
 
     @Transactional
     public void subscribeUser(User user, String url) {
-        String cleanUrl = url.trim();
-
-        // todo: use regex, improve versatility
-        if (!url.startsWith("https://t.me/s/")) {
-            cleanUrl = "https://t.me/s/" + cleanUrl;
-        }
+        String cleanUrl = FormatUtils.normalizeTelegramUrl(url);
         Source source = findOrSaveSource(cleanUrl);
 
         user.getSubscriptions().add(source);
@@ -43,13 +39,7 @@ public class SourceService {
     @Transactional
     public void unsubscribeUser(User user, String url) {
 
-        String fullUrl;
-        // todo: use regex, improve versatility
-        if (!url.startsWith("https://t.me/s/")) {
-            fullUrl = "https://t.me/s/" + url;
-        } else {
-            fullUrl = url;
-        }
+        String fullUrl = FormatUtils.normalizeTelegramUrl(url);
 
         user.getSubscriptions().removeIf(s -> s.getUrl().equals(fullUrl));
         userService.updateUser(user);

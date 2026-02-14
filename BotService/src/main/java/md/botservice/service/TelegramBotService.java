@@ -47,14 +47,14 @@ public class TelegramBotService extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         try {
-            // Handle callback queries (inline keyboard button clicks)
+            // Handle inline keyboard button clicks
             if (update.hasCallbackQuery()) {
                 log.info("Received callback query");
                 callbackQueryHandler.handleCallbackQuery(update.getCallbackQuery(), this);
                 return;
             }
 
-            // Handle Web App data (sent from Mini App)
+            // Handle Web App data
             if (update.hasMessage() && update.getMessage().getWebAppData() != null) {
                 log.info("Received web app data from chat {}", update.getMessage().getChatId());
                 webAppDataHandler.handleWebAppData(update, this);
@@ -79,7 +79,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 return;
             }
 
-            // Handle button texts (from ReplyKeyboard)
+            // Handle ReplyKeyboard
             text = mapButtonTextToCommand(text);
 
             Command command = Command.of(user, chatId, text);

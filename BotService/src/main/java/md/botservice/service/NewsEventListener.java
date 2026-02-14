@@ -25,8 +25,6 @@ public class NewsEventListener {
             String url = json.get("url").asText();
             double score = json.get("score").asDouble();
 
-            System.out.println("🚀 Sending Alert to " + userId + " (Match: " + score + ")");
-
             botService.sendNewsAlert(userId, title, url);
 
         } catch (Exception e) {

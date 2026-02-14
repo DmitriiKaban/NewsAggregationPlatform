@@ -1,4 +1,3 @@
 package md.botservice.dto;
 
-public record SourceRequest(String source) {
-}
+public record SourceRequest(String source) { }

@@ -37,7 +37,7 @@ public class CallbackQueryHandler {
             } else {
                 switch (callbackData) {
                     case "update_interests" -> handleUpdateInterests(userId, chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
-                    case "keep_interests" -> handleKeepInterests(userId, chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
+                    case "keep_interests" -> handleKeepInterests(chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
                     case "CMD_ADD_SOURCE" -> handleAddSource(userId, chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
                     default -> log.warn("Unknown callback data: {}", callbackData);
                 }
@@ -71,10 +71,10 @@ public class CallbackQueryHandler {
         message.setReplyMarkup(new ForceReplyKeyboard(true));
         sender.execute(message);
 
-        log.info("✅ User {} state set to AWAITING_INTERESTS", userId);
+        log.info("User {} state set to AWAITING_INTERESTS", userId);
     }
 
-    private void handleKeepInterests(Long userId, Long chatId, AbsSender sender, String queryId, Integer messageId) throws TelegramApiException {
+    private void handleKeepInterests(Long chatId, AbsSender sender, String queryId, Integer messageId) throws TelegramApiException {
         AnswerCallbackQuery answer = new AnswerCallbackQuery();
         answer.setCallbackQueryId(queryId);
         answer.setText("Interests kept unchanged ✅");
@@ -114,7 +114,7 @@ public class CallbackQueryHandler {
         message.setReplyMarkup(new ForceReplyKeyboard(true));
         sender.execute(message);
 
-        log.info("✅ User {} state set to AWAITING_SOURCE_URL", userId);
+        log.info("User {} state set to AWAITING_SOURCE_URL", userId);
     }
 
     private void handleRemoveSource(Long userId, String callbackData, Long chatId, AbsSender sender, String queryId, Integer messageId) throws TelegramApiException {
@@ -144,10 +144,10 @@ public class CallbackQueryHandler {
             editMessage.setParseMode("Markdown");
             sender.execute(editMessage);
 
-            log.info("✅ Successfully removed source {} for user {}", sourceId, userId);
+            log.info("Removed source {} for user {}", sourceId, userId);
 
         } catch (Exception e) {
-            log.error("❌ Failed to remove source {} for user {}", sourceId, userId, e);
+            log.error("Failed to remove source {} for user {}", sourceId, userId, e);
 
             AnswerCallbackQuery answer = new AnswerCallbackQuery();
             answer.setCallbackQueryId(queryId);

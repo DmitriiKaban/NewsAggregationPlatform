@@ -19,9 +19,6 @@ declare global {
                         username?: string;
                         language_code?: string;
                     };
-                    query_id?: string;
-                    auth_date?: number;
-                    hash?: string;
                 };
                 themeParams?: {
                     bg_color?: string;
@@ -76,9 +73,8 @@ export default function App() {
     const [isTelegramEnvironment, setIsTelegramEnvironment] = useState(false);
     const [user, setUser] = useState<{ id?: number; first_name?: string; username?: string } | null>(null);
     const [displayName, setDisplayName] = useState('there');
-    const [debugInfo, setDebugInfo] = useState<any>({});
 
-    const backendUrl = "https://fymypf-ip-89-149-68-82.tunnelmole.net/api/users";
+    const backendUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api/users";
 
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
@@ -95,8 +91,6 @@ export default function App() {
 
     useEffect(() => {
         console.log("🔍 Initializing app...");
-        console.log("🔍 window.Telegram exists:", !!window.Telegram);
-        console.log("🔍 window.Telegram.WebApp exists:", !!tg);
 
         if (tg) {
             console.log("✅ Telegram WebApp detected");
@@ -106,16 +100,9 @@ export default function App() {
                 tg.ready();
                 tg.expand();
 
-                console.log("🔍 Full Telegram WebApp object:", {
-                    hasInitData: !!tg.initData,
-                    initDataLength: tg.initData?.length || 0,
-                    hasInitDataUnsafe: !!tg.initDataUnsafe,
-                    initDataUnsafe: tg.initDataUnsafe
-                });
-
-                // Method 1: Try initDataUnsafe
                 const userData = tg.initDataUnsafe?.user;
-                console.log("🔍 initDataUnsafe.user:", userData);
+                console.log("🔍 userData:", JSON.stringify(userData));
+                console.log("🔍 userData.id:", userData?.id);
 
                 if (userData && userData.id) {
                     console.log("✅ Found user data via initDataUnsafe:", userData);
@@ -126,24 +113,14 @@ export default function App() {
                     };
                     setUser(userObj);
                     setDisplayName(userData.first_name || 'there');
-                    setDebugInfo({
-                        method: 'initDataUnsafe',
-                        userId: userData.id,
-                        firstName: userData.first_name,
-                        hasInitData: !!tg.initData,
-                        initDataLength: tg.initData?.length || 0
-                    });
-                    return; // Success, exit early
+                    return;
                 }
 
-                // Method 2: Try parsing initData string
                 console.log("⚠️ No user in initDataUnsafe, trying initData string...");
                 if (tg.initData && tg.initData.length > 0) {
-                    console.log("🔍 initData string:", tg.initData.substring(0, 100) + "...");
                     try {
                         const params = new URLSearchParams(tg.initData);
                         const userJson = params.get('user');
-                        console.log("🔍 user param from initData:", userJson);
 
                         if (userJson) {
                             const parsedUser = JSON.parse(userJson);
@@ -155,35 +132,13 @@ export default function App() {
                             };
                             setUser(userObj);
                             setDisplayName(parsedUser.first_name || 'there');
-                            setDebugInfo({
-                                method: 'initData parsing',
-                                userId: parsedUser.id,
-                                firstName: parsedUser.first_name
-                            });
-                            return; // Success, exit early
-                        } else {
-                            console.error("❌ No 'user' parameter in initData");
-                            setDebugInfo({
-                                error: 'No user parameter in initData',
-                                initDataParams: Array.from(params.keys())
-                            });
+                            return;
                         }
                     } catch (e) {
                         console.error("❌ Failed to parse initData:", e);
-                        setDebugInfo({
-                            error: 'Failed to parse initData',
-                            exception: String(e)
-                        });
                     }
-                } else {
-                    console.error("❌ initData is empty or missing");
-                    setDebugInfo({
-                        error: 'initData is empty',
-                        hasInitData: false
-                    });
                 }
 
-                // If we get here, we failed to get user data
                 console.error("❌ Could not get user data from Telegram");
                 setUser(null);
                 setError("Could not identify user from Telegram");
@@ -191,25 +146,14 @@ export default function App() {
 
             } catch (err) {
                 console.error("❌ Error initializing Telegram WebApp:", err);
-                setIsTelegramEnvironment(false);
                 setUser(null);
-                setError("Failed to initialize: " + String(err));
-                setDebugInfo({
-                    error: 'Initialization failed',
-                    exception: String(err)
-                });
+                setError("Failed to initialize");
                 setLoading(false);
             }
         } else {
-            console.error("❌ Not in Telegram environment - window.Telegram.WebApp not found");
-            setIsTelegramEnvironment(false);
+            console.error("❌ Not in Telegram environment");
             setUser(null);
             setError("Must be opened from Telegram");
-            setDebugInfo({
-                error: 'Not in Telegram',
-                hasTelegram: !!window.Telegram,
-                hasWebApp: !!tg
-            });
             setLoading(false);
         }
     }, []);
@@ -246,12 +190,14 @@ export default function App() {
             .then(data => {
                 console.log("✅ Data received:", data);
 
-                if (data.name && data.name.trim()) {
-                    console.log("📝 Updating display name from backend:", data.name);
-                    setDisplayName(data.name);
-                    setUser(prev => prev ? { ...prev, first_name: data.name } : prev);
+                // Use firstName from backend response
+                if (data.firstName && data.firstName.trim()) {
+                    console.log("📝 Using firstName from backend:", data.firstName);
+                    setDisplayName(data.firstName);
+                    setUser(prev => prev ? { ...prev, first_name: data.firstName } : prev);
                 }
 
+                // Handle interests
                 let interestsStr = '';
                 if (typeof data.interests === 'string') {
                     interestsStr = data.interests;
@@ -262,15 +208,18 @@ export default function App() {
                 setInterests(interestsStr);
                 setOriginalInterests(interestsStr);
 
+                // Handle sources - extract from SourceDto objects
                 if (Array.isArray(data.sources)) {
                     const sourceList = data.sources.map((s: any) => {
                         if (typeof s === 'string') return s;
                         if (typeof s === 'object' && s !== null) {
-                            return s.url || s.name || s.source || JSON.stringify(s);
+                            // SourceDto has 'name' and 'url' fields
+                            return s.url || s.name || String(s);
                         }
                         return String(s);
                     }).filter(Boolean);
 
+                    console.log("📚 Loaded sources:", sourceList);
                     setSources(sourceList);
                 }
 
@@ -440,7 +389,6 @@ export default function App() {
         );
     }
 
-    // Show error if no user or critical error
     if (!user) {
         return (
             <div style={{
@@ -472,7 +420,7 @@ export default function App() {
                         lineHeight: 1.5,
                         margin: '0 0 20px 0'
                     }}>
-                        Unable to identify your Telegram account.
+                        Please open this app from Telegram using the keyboard button.
                     </p>
                     {error && (
                         <div style={{
@@ -481,46 +429,11 @@ export default function App() {
                             borderRadius: '8px',
                             fontSize: '13px',
                             color: colors.hint,
-                            marginBottom: '16px',
                             textAlign: 'left'
                         }}>
                             <strong>Error:</strong> {error}
                         </div>
                     )}
-
-                    {/* Debug info */}
-                    <details style={{
-                        marginTop: '20px',
-                        padding: '12px',
-                        background: `${colors.hint}10`,
-                        borderRadius: '8px',
-                        textAlign: 'left'
-                    }}>
-                        <summary style={{
-                            cursor: 'pointer',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            marginBottom: '8px'
-                        }}>
-                            Debug Information
-                        </summary>
-                        <pre style={{
-                            fontSize: '11px',
-                            color: colors.hint,
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-all',
-                            margin: 0
-                        }}>
-                            {JSON.stringify(debugInfo, null, 2)}
-                        </pre>
-                        <div style={{
-                            marginTop: '12px',
-                            fontSize: '12px',
-                            color: colors.hint
-                        }}>
-                            <strong>Check browser console (F12) for more details</strong>
-                        </div>
-                    </details>
                 </div>
             </div>
         );
@@ -533,7 +446,6 @@ export default function App() {
             color: colors.text,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}>
-            {/* Header */}
             <div style={{
                 padding: '20px',
                 borderBottom: `1px solid ${colors.hint}40`
@@ -587,7 +499,6 @@ export default function App() {
                 </p>
             </div>
 
-            {/* Tabs */}
             <div style={{
                 display: 'flex',
                 borderBottom: `2px solid ${colors.hint}20`,
@@ -629,7 +540,6 @@ export default function App() {
                 </TabButton>
             </div>
 
-            {/* Content */}
             <div style={{ padding: '20px' }}>
                 {activeTab === 'interests' ? (
                     <div>

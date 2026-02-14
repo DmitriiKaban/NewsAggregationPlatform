@@ -4,11 +4,9 @@ import md.botservice.models.Command;
 import md.botservice.models.Source;
 import md.botservice.models.TelegramCommands;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.bots.AbsSender;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,81 +25,49 @@ public class ListSourcesCommandStrategy implements CommandStrategy {
         Set<Source> sources = command.user().getSubscriptions();
 
         if (sources.isEmpty()) {
-            sendMessage(sender, command.chatId(),
-                    "📭 You have no sources.\n\nUse the button below to add one:");
+            sendMessage(sender, command.chatId(), "📭 You have no sources.\n\nUse the button below to add one:", createAddButtonMarkup());
             return;
         }
 
-        // Create message with inline buttons for each source
-        StringBuilder messageText = new StringBuilder("📚 *Your Sources:*\n\n");
-
+        StringBuilder text = new StringBuilder("📚 *Your Sources:*\n\n");
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         int index = 0;
         for (Source source : sources) {
-            // Add source to message
-            messageText.append(String.format("%d. `%s`\n", index + 1, source.getUrl()));
+            text.append(String.format("%d. `%s`\n", index + 1, source.getUrl()));
 
-            // Create remove button for this source
             List<InlineKeyboardButton> row = new ArrayList<>();
-            InlineKeyboardButton removeBtn = new InlineKeyboardButton();
-            removeBtn.setText("🗑 Remove #" + (index + 1));
-            removeBtn.setCallbackData("REMOVE_SOURCE:" + source.getId());
-            row.add(removeBtn);
-            keyboard.add(row);
-
+            InlineKeyboardButton btn = new InlineKeyboardButton();
+            btn.setText("🗑 Remove #" + (index + 1));
+            btn.setCallbackData("REMOVE_SOURCE:" + source.getId());
+            row.add(btn);
+            rows.add(row);
             index++;
         }
 
-        // Add "Add new source" button
         List<InlineKeyboardButton> addRow = new ArrayList<>();
         InlineKeyboardButton addBtn = new InlineKeyboardButton();
         addBtn.setText("➕ Add New Source");
         addBtn.setCallbackData("CMD_ADD_SOURCE");
         addRow.add(addBtn);
-        keyboard.add(addRow);
+        rows.add(addRow);
 
-        markup.setKeyboard(keyboard);
+        markup.setKeyboard(rows);
 
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(command.chatId()));
-        message.setText(messageText.toString());
-        message.setParseMode("Markdown");
-        message.setReplyMarkup(markup);
-
-        try {
-            sender.execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
+        sendMessage(sender, command.chatId(), text.toString(), markup);
     }
 
-    @Override
-    public void sendMessage(AbsSender sender, Long chatId, String text) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(text);
-        message.setParseMode("Markdown");
-
-        // Add "Add Source" button
+    private InlineKeyboardMarkup createAddButtonMarkup() {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         List<InlineKeyboardButton> row = new ArrayList<>();
         InlineKeyboardButton addBtn = new InlineKeyboardButton();
         addBtn.setText("➕ Add Source");
         addBtn.setCallbackData("CMD_ADD_SOURCE");
         row.add(addBtn);
-        keyboard.add(row);
-
-        markup.setKeyboard(keyboard);
-        message.setReplyMarkup(markup);
-
-        try {
-            sender.execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
+        rows.add(row);
+        markup.setKeyboard(rows);
+        return markup;
     }
 }
