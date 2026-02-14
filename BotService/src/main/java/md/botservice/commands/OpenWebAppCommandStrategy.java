@@ -17,7 +17,7 @@ import java.util.List;
 @Component
 public class OpenWebAppCommandStrategy implements CommandStrategy {
 
-    @Value("${telegram.webapp.url:https://DmitriiKaban.github.io/NewsAggregationPlatform/}")
+    @Value("${telegram.webapp.url}")
     private String webAppUrl;
 
     @Override

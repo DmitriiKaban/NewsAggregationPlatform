@@ -8,7 +8,6 @@ import md.botservice.models.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -20,12 +19,18 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final UserService userService;
     private final CommandEffectFactory commandFactory;
     private final WebAppDataHandler webAppDataHandler;
+    private final CallbackQueryHandler callbackQueryHandler;
+    private final UserStateManager stateManager;
+    private final StateMessageHandler stateMessageHandler;
     private final String botUsername;
 
     public TelegramBotService(
             UserService userService,
             CommandEffectFactory commandFactory,
             WebAppDataHandler webAppDataHandler,
+            CallbackQueryHandler callbackQueryHandler,
+            UserStateManager stateManager,
+            StateMessageHandler stateMessageHandler,
             @Value("${telegram.bot.username}") String botUsername,
             @Value("${telegram.bot.token}") String botToken
     ) {
@@ -33,62 +38,49 @@ public class TelegramBotService extends TelegramLongPollingBot {
         this.userService = userService;
         this.commandFactory = commandFactory;
         this.webAppDataHandler = webAppDataHandler;
+        this.callbackQueryHandler = callbackQueryHandler;
+        this.stateManager = stateManager;
+        this.stateMessageHandler = stateMessageHandler;
         this.botUsername = botUsername;
     }
 
     @Override
     public void onUpdateReceived(Update update) {
         try {
+            // Handle callback queries (inline keyboard button clicks)
+            if (update.hasCallbackQuery()) {
+                log.info("Received callback query");
+                callbackQueryHandler.handleCallbackQuery(update.getCallbackQuery(), this);
+                return;
+            }
+
+            // Handle Web App data (sent from Mini App)
             if (update.hasMessage() && update.getMessage().getWebAppData() != null) {
+                log.info("Received web app data from chat {}", update.getMessage().getChatId());
                 webAppDataHandler.handleWebAppData(update, this);
                 return;
             }
 
-            String text = null;
-            Long chatId = null;
-            org.telegram.telegrambots.meta.api.objects.User telegramUser = null;
-
-            if (update.hasCallbackQuery()) {
-                var callback = update.getCallbackQuery();
-                chatId = callback.getMessage().getChatId();
-                telegramUser = callback.getFrom();
-                String data = callback.getData();
-
-                if ("CMD_ADD_SOURCE".equals(data)) {
-                    text = "/addsource";
-                } else if ("CMD_REMOVE_SOURCE".equals(data)) {
-                    text = "/removesource";
-                }
-
-                answerCallbackQuery(callback.getId());
+            // Handle regular text messages
+            if (!update.hasMessage() || !update.getMessage().hasText()) {
+                return;
             }
 
-            else if (update.hasMessage() && update.getMessage().hasText()) {
-                var msg = update.getMessage();
-                chatId = msg.getChatId();
-                telegramUser = msg.getFrom();
-                text = msg.getText();
-
-                if (msg.getReplyToMessage() != null) {
-                    String question = msg.getReplyToMessage().getText();
-
-                    if (question.contains("Paste the link of the source")) {
-                        text = "/addsource " + text;
-                    }
-                    else if (question.contains("Paste the link to remove")) {
-                        text = "/removesource " + text;
-                    }
-                    else if (question.contains("What are you interested in")) {
-                        text = "/myinterests " + text;
-                    }
-                }
-
-                text = mapButtonTextToCommand(text);
-            }
-
-            if (text == null) return;
+            long chatId = update.getMessage().getChatId();
+            String text = update.getMessage().getText();
+            var telegramUser = update.getMessage().getFrom();
 
             User user = userService.findOrRegister(telegramUser);
+
+            // Check if user is in a state awaiting input
+            if (stateManager.isAwaitingInput(user.getId())) {
+                log.info("User {} is awaiting input, current state: {}", user.getId(), stateManager.getState(user.getId()));
+                stateMessageHandler.handleStateMessage(user, text, chatId, this);
+                return;
+            }
+
+            // Handle button texts (from ReplyKeyboard)
+            text = mapButtonTextToCommand(text);
 
             Command command = Command.of(user, chatId, text);
 
@@ -97,27 +89,31 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         } catch (Exception e) {
             log.error("Error processing update", e);
-        }
-    }
-
-    private void answerCallbackQuery(String callbackId) {
-        AnswerCallbackQuery answer = new AnswerCallbackQuery();
-        answer.setCallbackQueryId(callbackId);
-        try {
-            execute(answer);
-        } catch (TelegramApiException e) {
+            if (update.hasMessage()) {
+                sendErrorMessage(update.getMessage().getChatId());
+            }
         }
     }
 
     private String mapButtonTextToCommand(String text) {
-        if (text == null) return null;
-
         return switch (text) {
             case "📚 My Sources" -> "/sources";
             case "🎯 My Interests" -> "/myinterests";
             case "❓ Help" -> "/help";
+            case "🎨 Open Web App" -> "/webapp";
             default -> text;
         };
+    }
+
+    private void sendErrorMessage(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("⚠️ Sorry, I couldn't understand that command. Try /help");
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send error message", e);
+        }
     }
 
     public void sendNewsAlert(Long chatId, String title, String url) {

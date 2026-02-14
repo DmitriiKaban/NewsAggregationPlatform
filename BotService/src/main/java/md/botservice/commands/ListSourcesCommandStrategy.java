@@ -26,40 +26,77 @@ public class ListSourcesCommandStrategy implements CommandStrategy {
     public void execute(Command command, AbsSender sender) {
         Set<Source> sources = command.user().getSubscriptions();
 
-        StringBuilder text = new StringBuilder("📚 *Your Subscriptions:*\n\n");
         if (sources.isEmpty()) {
-            text.append("_(No sources yet)_\n");
-        } else {
-            for (Source s : sources) {
-                text.append("• ").append(s.getName()).append("\n");
-            }
+            sendMessage(sender, command.chatId(),
+                    "📭 You have no sources.\n\nUse the button below to add one:");
+            return;
         }
-        text.append("\n_Manage your sources below:_");
+
+        // Create message with inline buttons for each source
+        StringBuilder messageText = new StringBuilder("📚 *Your Sources:*\n\n");
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        int index = 0;
+        for (Source source : sources) {
+            // Add source to message
+            messageText.append(String.format("%d. `%s`\n", index + 1, source.getUrl()));
+
+            // Create remove button for this source
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            InlineKeyboardButton removeBtn = new InlineKeyboardButton();
+            removeBtn.setText("🗑 Remove #" + (index + 1));
+            removeBtn.setCallbackData("REMOVE_SOURCE:" + source.getId());
+            row.add(removeBtn);
+            keyboard.add(row);
+
+            index++;
+        }
+
+        // Add "Add new source" button
+        List<InlineKeyboardButton> addRow = new ArrayList<>();
+        InlineKeyboardButton addBtn = new InlineKeyboardButton();
+        addBtn.setText("➕ Add New Source");
+        addBtn.setCallbackData("CMD_ADD_SOURCE");
+        addRow.add(addBtn);
+        keyboard.add(addRow);
+
+        markup.setKeyboard(keyboard);
 
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(command.chatId()));
-        message.setText(text.toString());
+        message.setText(messageText.toString());
+        message.setParseMode("Markdown");
+        message.setReplyMarkup(markup);
+
+        try {
+            sender.execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void sendMessage(AbsSender sender, Long chatId, String text) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
         message.setParseMode("Markdown");
 
-        // 1. Create INLINE buttons (Action buttons inside the chat)
-        InlineKeyboardMarkup inlineMarkup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        // Add "Add Source" button
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
+        List<InlineKeyboardButton> row = new ArrayList<>();
         InlineKeyboardButton addBtn = new InlineKeyboardButton();
         addBtn.setText("➕ Add Source");
         addBtn.setCallbackData("CMD_ADD_SOURCE");
-        row1.add(addBtn);
+        row.add(addBtn);
+        keyboard.add(row);
 
-        InlineKeyboardButton rmvBtn = new InlineKeyboardButton();
-        rmvBtn.setText("➖ Remove Source");
-        rmvBtn.setCallbackData("CMD_REMOVE_SOURCE");
-        row1.add(rmvBtn);
-
-        rows.add(row1);
-        inlineMarkup.setKeyboard(rows);
-
-        message.setReplyMarkup(inlineMarkup);
+        markup.setKeyboard(keyboard);
+        message.setReplyMarkup(markup);
 
         try {
             sender.execute(message);

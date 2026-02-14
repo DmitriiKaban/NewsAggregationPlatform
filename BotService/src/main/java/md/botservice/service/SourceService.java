@@ -55,6 +55,14 @@ public class SourceService {
         userService.updateUser(user);
     }
 
+    @Transactional
+    public void unsubscribeUser(User user, Long sourceId) {
+        Source source = sourceRepository.findById(sourceId)
+                .orElseThrow(() -> new RuntimeException("Source not found"));
+        user.getSubscriptions().remove(source);
+        userService.updateUser(user);
+    }
+
     private String extractName(String url) {
         if (url.contains("/")) {
             return url.substring(url.lastIndexOf("/") + 1);

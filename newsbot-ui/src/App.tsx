@@ -66,6 +66,8 @@ const showMessage = (message: string) => {
 
 export default function App() {
     const [interests, setInterests] = useState('');
+    const [originalInterests, setOriginalInterests] = useState('');
+    const [isEditingInterests, setIsEditingInterests] = useState(false);
     const [sources, setSources] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState<'interests' | 'sources'>('interests');
     const [loading, setLoading] = useState(true);
@@ -73,8 +75,10 @@ export default function App() {
     const [backendReachable, setBackendReachable] = useState(true);
     const [isTelegramEnvironment, setIsTelegramEnvironment] = useState(false);
     const [user, setUser] = useState<{ id?: number; first_name?: string; username?: string } | null>(null);
+    const [displayName, setDisplayName] = useState('there');
+    const [debugInfo, setDebugInfo] = useState<any>({});
 
-    const backendUrl = "https://tw98ca-ip-89-149-68-82.tunnelmole.net/api/users";
+    const backendUrl = "https://fymypf-ip-89-149-68-82.tunnelmole.net/api/users";
 
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
@@ -90,6 +94,10 @@ export default function App() {
     };
 
     useEffect(() => {
+        console.log("🔍 Initializing app...");
+        console.log("🔍 window.Telegram exists:", !!window.Telegram);
+        console.log("🔍 window.Telegram.WebApp exists:", !!tg);
+
         if (tg) {
             console.log("✅ Telegram WebApp detected");
             setIsTelegramEnvironment(true);
@@ -98,140 +106,208 @@ export default function App() {
                 tg.ready();
                 tg.expand();
 
-                // Try to get user data from initDataUnsafe
-                console.log("🔍 Checking initDataUnsafe:", tg.initDataUnsafe);
-                console.log("🔍 Checking initData:", tg.initData);
+                console.log("🔍 Full Telegram WebApp object:", {
+                    hasInitData: !!tg.initData,
+                    initDataLength: tg.initData?.length || 0,
+                    hasInitDataUnsafe: !!tg.initDataUnsafe,
+                    initDataUnsafe: tg.initDataUnsafe
+                });
 
+                // Method 1: Try initDataUnsafe
                 const userData = tg.initDataUnsafe?.user;
+                console.log("🔍 initDataUnsafe.user:", userData);
 
                 if (userData && userData.id) {
-                    console.log("✅ Found user data:", userData);
-                    setUser({
+                    console.log("✅ Found user data via initDataUnsafe:", userData);
+                    const userObj = {
                         id: userData.id,
                         first_name: userData.first_name || 'User',
                         username: userData.username
+                    };
+                    setUser(userObj);
+                    setDisplayName(userData.first_name || 'there');
+                    setDebugInfo({
+                        method: 'initDataUnsafe',
+                        userId: userData.id,
+                        firstName: userData.first_name,
+                        hasInitData: !!tg.initData,
+                        initDataLength: tg.initData?.length || 0
                     });
-                } else {
-                    console.warn("⚠️ No user data in initDataUnsafe, using fallback");
-                    // Try to parse from initData string
-                    if (tg.initData) {
-                        try {
-                            const params = new URLSearchParams(tg.initData);
-                            const userJson = params.get('user');
-                            if (userJson) {
-                                const parsedUser = JSON.parse(userJson);
-                                console.log("✅ Parsed user from initData:", parsedUser);
-                                setUser({
-                                    id: parsedUser.id,
-                                    first_name: parsedUser.first_name || 'User',
-                                    username: parsedUser.username
-                                });
-                                return;
-                            }
-                        } catch (e) {
-                            console.error("❌ Failed to parse initData:", e);
-                        }
-                    }
-
-                    // Last resort: use a default ID for testing
-                    console.warn("⚠️ Using test user ID");
-                    setUser({ id: 938781412, first_name: 'Telegram User' });
+                    return; // Success, exit early
                 }
+
+                // Method 2: Try parsing initData string
+                console.log("⚠️ No user in initDataUnsafe, trying initData string...");
+                if (tg.initData && tg.initData.length > 0) {
+                    console.log("🔍 initData string:", tg.initData.substring(0, 100) + "...");
+                    try {
+                        const params = new URLSearchParams(tg.initData);
+                        const userJson = params.get('user');
+                        console.log("🔍 user param from initData:", userJson);
+
+                        if (userJson) {
+                            const parsedUser = JSON.parse(userJson);
+                            console.log("✅ Parsed user from initData:", parsedUser);
+                            const userObj = {
+                                id: parsedUser.id,
+                                first_name: parsedUser.first_name || 'User',
+                                username: parsedUser.username
+                            };
+                            setUser(userObj);
+                            setDisplayName(parsedUser.first_name || 'there');
+                            setDebugInfo({
+                                method: 'initData parsing',
+                                userId: parsedUser.id,
+                                firstName: parsedUser.first_name
+                            });
+                            return; // Success, exit early
+                        } else {
+                            console.error("❌ No 'user' parameter in initData");
+                            setDebugInfo({
+                                error: 'No user parameter in initData',
+                                initDataParams: Array.from(params.keys())
+                            });
+                        }
+                    } catch (e) {
+                        console.error("❌ Failed to parse initData:", e);
+                        setDebugInfo({
+                            error: 'Failed to parse initData',
+                            exception: String(e)
+                        });
+                    }
+                } else {
+                    console.error("❌ initData is empty or missing");
+                    setDebugInfo({
+                        error: 'initData is empty',
+                        hasInitData: false
+                    });
+                }
+
+                // If we get here, we failed to get user data
+                console.error("❌ Could not get user data from Telegram");
+                setUser(null);
+                setError("Could not identify user from Telegram");
+                setLoading(false);
+
             } catch (err) {
                 console.error("❌ Error initializing Telegram WebApp:", err);
                 setIsTelegramEnvironment(false);
-                setUser({ id: 938781412, first_name: 'Browser User' });
+                setUser(null);
+                setError("Failed to initialize: " + String(err));
+                setDebugInfo({
+                    error: 'Initialization failed',
+                    exception: String(err)
+                });
+                setLoading(false);
             }
         } else {
-            console.warn("⚠️ Not in Telegram environment");
+            console.error("❌ Not in Telegram environment - window.Telegram.WebApp not found");
             setIsTelegramEnvironment(false);
-            setUser({ id: 938781412, first_name: 'Browser User' });
+            setUser(null);
+            setError("Must be opened from Telegram");
+            setDebugInfo({
+                error: 'Not in Telegram',
+                hasTelegram: !!window.Telegram,
+                hasWebApp: !!tg
+            });
+            setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        if (user?.id) {
-            console.log("🚀 Fetching profile for user:", user);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-            fetch(`${backendUrl}/${user.id}/profile`, {
-                method: 'GET',
-                headers: {
-                    "ngrok-skip-browser-warning": "69420",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-                mode: 'cors',
-                credentials: 'omit',
-                signal: controller.signal
-            })
-                .then(res => {
-                    clearTimeout(timeoutId);
-                    console.log("📡 Response status:", res.status);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return res.json();
-                })
-                .then(data => {
-                    console.log("✅ Data received:", data);
-
-                    if (typeof data.interests === 'string') {
-                        setInterests(data.interests);
-                    } else if (Array.isArray(data.interests)) {
-                        setInterests(data.interests.join(', '));
-                    }
-
-                    if (Array.isArray(data.sources)) {
-                        console.log("📚 Raw sources:", data.sources);
-
-                        const sourceList = data.sources.map((s: any) => {
-                            if (typeof s === 'string') return s;
-                            if (typeof s === 'object' && s !== null) {
-                                return s.url || s.name || s.source || JSON.stringify(s);
-                            }
-                            return String(s);
-                        }).filter(Boolean);
-
-                        console.log("📚 Parsed sources:", sourceList);
-                        setSources(sourceList);
-                    } else {
-                        console.warn("⚠️ Sources is not an array:", data.sources);
-                        setSources([]);
-                    }
-
-                    setLoading(false);
-                    setError(null);
-                    setBackendReachable(true);
-                })
-                .catch(err => {
-                    clearTimeout(timeoutId);
-                    console.error("❌ Failed to load profile:", err);
-
-                    let errorMessage = err.message;
-                    if (err.name === 'AbortError') {
-                        errorMessage = 'Request timed out';
-                    } else if (errorMessage.includes('Failed to fetch')) {
-                        errorMessage = 'Cannot connect to backend';
-                    }
-
-                    setError(errorMessage);
-                    setLoading(false);
-                    setBackendReachable(false);
-                });
-        } else {
+        if (!user?.id) {
+            console.log("⚠️ No user ID, skipping backend fetch");
             setLoading(false);
-            setError("No user ID");
-            setBackendReachable(false);
+            return;
         }
+
+        console.log("🚀 Fetching profile for user:", user);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        fetch(`${backendUrl}/${user.id}/profile`, {
+            method: 'GET',
+            headers: {
+                "ngrok-skip-browser-warning": "69420",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            mode: 'cors',
+            credentials: 'omit',
+            signal: controller.signal
+        })
+            .then(res => {
+                clearTimeout(timeoutId);
+                console.log("📡 Response status:", res.status);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                console.log("✅ Data received:", data);
+
+                if (data.name && data.name.trim()) {
+                    console.log("📝 Updating display name from backend:", data.name);
+                    setDisplayName(data.name);
+                    setUser(prev => prev ? { ...prev, first_name: data.name } : prev);
+                }
+
+                let interestsStr = '';
+                if (typeof data.interests === 'string') {
+                    interestsStr = data.interests;
+                } else if (Array.isArray(data.interests)) {
+                    interestsStr = data.interests.join(', ');
+                }
+
+                setInterests(interestsStr);
+                setOriginalInterests(interestsStr);
+
+                if (Array.isArray(data.sources)) {
+                    const sourceList = data.sources.map((s: any) => {
+                        if (typeof s === 'string') return s;
+                        if (typeof s === 'object' && s !== null) {
+                            return s.url || s.name || s.source || JSON.stringify(s);
+                        }
+                        return String(s);
+                    }).filter(Boolean);
+
+                    setSources(sourceList);
+                }
+
+                setLoading(false);
+                setError(null);
+                setBackendReachable(true);
+            })
+            .catch(err => {
+                clearTimeout(timeoutId);
+                console.error("❌ Failed to load profile:", err);
+
+                let errorMessage = err.message;
+                if (err.name === 'AbortError') {
+                    errorMessage = 'Request timed out';
+                } else if (errorMessage.includes('Failed to fetch')) {
+                    errorMessage = 'Cannot connect to backend';
+                }
+
+                setError(errorMessage);
+                setLoading(false);
+                setBackendReachable(false);
+            });
     }, [user?.id, backendUrl]);
 
     useEffect(() => {
         if (!isTelegramEnvironment) return;
 
-        const handleBack = () => setActiveTab('interests');
+        const handleBack = () => {
+            if (isEditingInterests) {
+                setIsEditingInterests(false);
+                setInterests(originalInterests);
+            } else {
+                setActiveTab('interests');
+            }
+        };
 
-        if (activeTab !== 'interests') {
+        if (activeTab !== 'interests' || isEditingInterests) {
             tg?.BackButton.show();
             tg?.BackButton.onClick(handleBack);
 
@@ -242,7 +318,7 @@ export default function App() {
         } else {
             tg?.BackButton.hide();
         }
-    }, [activeTab, isTelegramEnvironment]);
+    }, [activeTab, isEditingInterests, originalInterests, isTelegramEnvironment]);
 
     useEffect(() => {
         if (!isTelegramEnvironment) return;
@@ -267,13 +343,16 @@ export default function App() {
                 });
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                setOriginalInterests(interests);
+                setIsEditingInterests(false);
                 showMessage('✅ Interests saved!');
             } catch (err: any) {
                 showMessage(`Failed: ${err.message}`);
             }
         };
 
-        if (activeTab === 'interests' && interests.trim()) {
+        if (activeTab === 'interests' && isEditingInterests && interests.trim()) {
             if (tg?.MainButton) {
                 tg.MainButton.setText('Save Interests');
                 tg.MainButton.enable();
@@ -287,7 +366,7 @@ export default function App() {
         } else {
             tg?.MainButton.hide();
         }
-    }, [activeTab, interests, user?.id, backendReachable, backendUrl, isTelegramEnvironment]);
+    }, [activeTab, isEditingInterests, interests, user?.id, backendReachable, backendUrl, isTelegramEnvironment, originalInterests]);
 
     const handleAddSource = async () => {
         if (!backendReachable) {
@@ -343,33 +422,6 @@ export default function App() {
         }
     };
 
-    const handleSaveClick = async () => {
-        if (!user?.id || !backendReachable) {
-            alert('⚠️ Backend not reachable');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${backendUrl}/${user.id}/interests`, {
-                method: 'POST',
-                headers: {
-                    "ngrok-skip-browser-warning": "69420",
-                    "Content-Type": "application/json",
-                },
-                mode: 'cors',
-                credentials: 'omit',
-                body: JSON.stringify({ interest: interests })
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            alert('✅ Saved!');
-        } catch (err: any) {
-            alert(`Failed: ${err.message}`);
-        }
-    };
-
-    const firstName = user?.first_name || 'there';
-
     if (loading) {
         return (
             <div style={{
@@ -382,7 +434,93 @@ export default function App() {
             }}>
                 <div style={{ textAlign: 'center', color: colors.text }}>
                     <div style={{ fontSize: '64px', marginBottom: '24px' }}>📰</div>
-                    <div style={{ fontSize: '18px', fontWeight: '500' }}>Loading your feed...</div>
+                    <div style={{ fontSize: '18px', fontWeight: '500' }}>Loading...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error if no user or critical error
+    if (!user) {
+        return (
+            <div style={{
+                minHeight: '100vh',
+                background: colors.bg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            }}>
+                <div style={{
+                    textAlign: 'center',
+                    maxWidth: '400px',
+                    color: colors.text
+                }}>
+                    <div style={{ fontSize: '64px', marginBottom: '24px' }}>❌</div>
+                    <h2 style={{
+                        fontSize: '24px',
+                        fontWeight: '600',
+                        margin: '0 0 12px 0',
+                        color: colors.text
+                    }}>
+                        Could Not Find User
+                    </h2>
+                    <p style={{
+                        fontSize: '15px',
+                        color: colors.hint,
+                        lineHeight: 1.5,
+                        margin: '0 0 20px 0'
+                    }}>
+                        Unable to identify your Telegram account.
+                    </p>
+                    {error && (
+                        <div style={{
+                            padding: '12px',
+                            background: `${colors.hint}20`,
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            color: colors.hint,
+                            marginBottom: '16px',
+                            textAlign: 'left'
+                        }}>
+                            <strong>Error:</strong> {error}
+                        </div>
+                    )}
+
+                    {/* Debug info */}
+                    <details style={{
+                        marginTop: '20px',
+                        padding: '12px',
+                        background: `${colors.hint}10`,
+                        borderRadius: '8px',
+                        textAlign: 'left'
+                    }}>
+                        <summary style={{
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            marginBottom: '8px'
+                        }}>
+                            Debug Information
+                        </summary>
+                        <pre style={{
+                            fontSize: '11px',
+                            color: colors.hint,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-all',
+                            margin: 0
+                        }}>
+                            {JSON.stringify(debugInfo, null, 2)}
+                        </pre>
+                        <div style={{
+                            marginTop: '12px',
+                            fontSize: '12px',
+                            color: colors.hint
+                        }}>
+                            <strong>Check browser console (F12) for more details</strong>
+                        </div>
+                    </details>
                 </div>
             </div>
         );
@@ -400,21 +538,7 @@ export default function App() {
                 padding: '20px',
                 borderBottom: `1px solid ${colors.hint}40`
             }}>
-                {!isTelegramEnvironment && (
-                    <div style={{
-                        background: `${colors.link}20`,
-                        border: `1px solid ${colors.link}40`,
-                        borderRadius: '12px',
-                        padding: '12px 16px',
-                        marginBottom: '16px',
-                        color: colors.link,
-                        fontSize: '13px'
-                    }}>
-                        <strong>ℹ️ Browser Mode</strong> - Open in Telegram for full features
-                    </div>
-                )}
-
-                {error && (
+                {!backendReachable && (
                     <div style={{
                         background: '#ff980020',
                         border: '1px solid #ff980040',
@@ -424,7 +548,9 @@ export default function App() {
                         fontSize: '13px'
                     }}>
                         <strong style={{ color: '#ff9800' }}>⚠️ Offline Mode</strong>
-                        <div style={{ fontSize: '12px', marginTop: '4px', color: colors.hint }}>{error}</div>
+                        <div style={{ fontSize: '12px', marginTop: '4px', color: colors.hint }}>
+                            Backend not reachable
+                        </div>
                         <button
                             onClick={() => window.location.reload()}
                             style={{
@@ -450,7 +576,7 @@ export default function App() {
                     margin: '0 0 8px 0',
                     color: colors.text
                 }}>
-                    Hey, {firstName}! 👋
+                    Hey, {displayName}! 👋
                 </h1>
                 <p style={{
                     fontSize: '15px',
@@ -469,14 +595,21 @@ export default function App() {
             }}>
                 <TabButton
                     active={activeTab === 'interests'}
-                    onClick={() => setActiveTab('interests')}
+                    onClick={() => {
+                        setActiveTab('interests');
+                        setIsEditingInterests(false);
+                        setInterests(originalInterests);
+                    }}
                     colors={colors}
                 >
                     🎯 Interests
                 </TabButton>
                 <TabButton
                     active={activeTab === 'sources'}
-                    onClick={() => setActiveTab('sources')}
+                    onClick={() => {
+                        setActiveTab('sources');
+                        setIsEditingInterests(false);
+                    }}
                     colors={colors}
                 >
                     📚 Sources
@@ -507,54 +640,77 @@ export default function App() {
                             marginBottom: '12px',
                             color: colors.text
                         }}>
-                            What topics interest you?
+                            Your Current Interests
                         </label>
-                        <textarea
-                            value={interests}
-                            onChange={(e) => setInterests(e.target.value)}
-                            placeholder="AI, Crypto, Space, Tech..."
-                            style={{
-                                width: '100%',
-                                minHeight: '120px',
-                                padding: '14px',
-                                fontSize: '15px',
-                                border: `1px solid ${colors.hint}40`,
-                                borderRadius: '12px',
-                                fontFamily: 'inherit',
-                                resize: 'vertical',
-                                boxSizing: 'border-box',
-                                background: colors.secondaryBg,
-                                color: colors.text,
-                                outline: 'none'
-                            }}
-                        />
-                        <p style={{
-                            fontSize: '13px',
-                            color: colors.hint,
-                            marginTop: '8px'
-                        }}>
-                            💡 Separate topics with commas
-                        </p>
 
-                        {!isTelegramEnvironment && interests.trim() && (
-                            <button
-                                onClick={handleSaveClick}
-                                disabled={!backendReachable}
-                                style={{
-                                    marginTop: '16px',
-                                    padding: '14px 24px',
-                                    background: backendReachable ? colors.button : colors.hint,
-                                    color: colors.buttonText,
-                                    border: 'none',
-                                    borderRadius: '10px',
+                        {!isEditingInterests ? (
+                            <>
+                                <div style={{
+                                    padding: '16px',
+                                    background: colors.secondaryBg,
+                                    borderRadius: '12px',
+                                    border: `1px solid ${colors.hint}20`,
+                                    minHeight: '80px',
                                     fontSize: '15px',
-                                    fontWeight: '600',
-                                    cursor: backendReachable ? 'pointer' : 'not-allowed',
-                                    width: '100%'
-                                }}
-                            >
-                                💾 Save Interests
-                            </button>
+                                    color: colors.text
+                                }}>
+                                    {originalInterests || (
+                                        <span style={{ color: colors.hint, fontStyle: 'italic' }}>
+                                            No interests set yet
+                                        </span>
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={() => setIsEditingInterests(true)}
+                                    disabled={!backendReachable}
+                                    style={{
+                                        marginTop: '16px',
+                                        padding: '14px 24px',
+                                        background: backendReachable ? colors.button : colors.hint,
+                                        color: colors.buttonText,
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        fontSize: '15px',
+                                        fontWeight: '600',
+                                        cursor: backendReachable ? 'pointer' : 'not-allowed',
+                                        width: '100%'
+                                    }}
+                                >
+                                    ✏️ Update Interests
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <textarea
+                                    value={interests}
+                                    onChange={(e) => setInterests(e.target.value)}
+                                    placeholder="AI, Crypto, Space, Tech..."
+                                    autoFocus
+                                    style={{
+                                        width: '100%',
+                                        minHeight: '120px',
+                                        padding: '14px',
+                                        fontSize: '15px',
+                                        border: `2px solid ${colors.button}`,
+                                        borderRadius: '12px',
+                                        fontFamily: 'inherit',
+                                        resize: 'vertical',
+                                        boxSizing: 'border-box',
+                                        background: colors.bg,
+                                        color: colors.text,
+                                        outline: 'none'
+                                    }}
+                                />
+                                <p style={{
+                                    fontSize: '13px',
+                                    color: colors.hint,
+                                    marginTop: '8px',
+                                    marginBottom: '0'
+                                }}>
+                                    💡 Separate topics with commas
+                                </p>
+                            </>
                         )}
                     </div>
                 ) : (
