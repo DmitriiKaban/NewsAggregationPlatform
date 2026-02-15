@@ -28,18 +28,17 @@ HF_TOKEN = os.getenv('HUGGINGFACE_TOKEN')
 
 app = FastAPI()
 
-
 if HF_TOKEN:
-    print("🔑 Authenticating with Hugging Face...")
+    print("Authenticating with Hugging Face...")
     login(token=HF_TOKEN)
 
-
-# Init Resources
-print("⏳ Loading Multilingual Model...")
+# --- 🧠 MODEL UPGRADE ---
+print("Loading Advanced Multilingual Model (E5-Large)...")
 model = SentenceTransformer(
-    'paraphrase-multilingual-MiniLM-L12-v2',
+    'intfloat/multilingual-e5-large',
     token=HF_TOKEN
 )
+
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client['newsbot_db']
 articles_collection = db['articles']
@@ -65,20 +64,21 @@ def listen_for_user_updates():
             user_id = data['userId']
             interests_text = data['interests']
 
-            vector = model.encode(interests_text).tolist()
+            text_for_model = f"query: {interests_text}"
+
+            vector = model.encode(text_for_model, normalize_embeddings=True).tolist()
 
             users_collection.update_one(
                 {"user_id": user_id},
                 {"$set": {"interests_text": interests_text, "vector": vector}},
                 upsert=True
             )
-            print(f"👤 Updated User {user_id}: {interests_text}")
+            print(f"Updated User {user_id}: {interests_text}")
 
         except Exception as e:
-            print(f"❌ Error updating user: {e}")
+            print(f"Error updating user: {e}")
 
 
-# NEWS PROCESSOR & MATCHER
 def process_news_stream():
     print("🎧 Listening for News...")
     consumer = KafkaConsumer(
@@ -99,14 +99,16 @@ def process_news_stream():
             if articles_collection.find_one({"link": link}):
                 continue
 
-            # Vectorize Article
-            text_to_vectorize = f"{title} {article.get('summary', '')}"
-            news_vector = model.encode(text_to_vectorize).tolist()
+            summary = article.get('summary', '')
+            text_to_vectorize = f"passage: {title} - {summary}"
+
+            # Normalize embeddings ensures Cosine Similarity works perfectly (0 to 1 scale)
+            news_vector = model.encode(text_to_vectorize, normalize_embeddings=True).tolist()
 
             # Save Article
             article_doc = {**article, "vector": news_vector, "processed_at": time.time()}
             articles_collection.insert_one(article_doc)
-            print(f"📰 Processed News: {title}")
+            print(f"Processed News: {title}")
 
             # MATCHING LOGIC
             users = list(users_collection.find({}))
@@ -118,8 +120,10 @@ def process_news_stream():
                 # Calculate Cosine Similarity
                 similarity = util.cos_sim(news_vector, user_vector).item()
 
-                # Threshold (e.g., 0.4 for loose match, 0.6 for strict)
-                if similarity > 0.35:
+                # 💡 ADJUSTED THRESHOLD
+                # > 0.80 is usually a direct match.
+                # > 0.75 is a strong semantic match.
+                if similarity > 0.70:
                     notification = {
                         "userId": user['user_id'],
                         "title": title,
@@ -127,19 +131,17 @@ def process_news_stream():
                         "score": similarity
                     }
                     producer.send(TOPIC_NOTIFICATIONS, value=notification)
-                    print(f"🔔 Match found! User {user['user_id']} (Score: {similarity:.2f})")
+                    print(f"Match! User {user['user_id']} (Score: {similarity:.4f})")
 
         except Exception as e:
-            print(f"❌ Error processing news: {e}")
+            print(f"Error processing news: {e}")
 
 @app.on_event("startup")
 async def startup_event():
-    # News Processing
     t1 = threading.Thread(target=process_news_stream)
     t1.daemon = True
     t1.start()
 
-    # User Updates
     t2 = threading.Thread(target=listen_for_user_updates)
     t2.daemon = True
     t2.start()
