@@ -90,10 +90,10 @@ export default function App() {
     };
 
     useEffect(() => {
-        console.log("🔍 Initializing app...");
+        console.log("Initializing app...");
 
         if (tg) {
-            console.log("✅ Telegram WebApp detected");
+            console.log("Telegram WebApp detected");
             setIsTelegramEnvironment(true);
 
             try {
