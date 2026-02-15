@@ -115,15 +115,16 @@ def process_news_stream():
 
             for user in users:
                 user_vector = user.get('vector')
+
                 if not user_vector: continue
 
                 # Calculate Cosine Similarity
                 similarity = util.cos_sim(news_vector, user_vector).item()
-
+                print(f"News similarity for user: {user['user_id']} is {similarity:.4f}")
                 # 💡 ADJUSTED THRESHOLD
                 # > 0.80 is usually a direct match.
                 # > 0.75 is a strong semantic match.
-                if similarity > 0.70:
+                if similarity > 0.80:
                     notification = {
                         "userId": user['user_id'],
                         "title": title,

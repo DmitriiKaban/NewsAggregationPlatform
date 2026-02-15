@@ -40,6 +40,7 @@ public class DataSeeder implements CommandLineRunner {
                 create("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
                 // --- FINANCE & BUSINESS ---
+                // verify if url is correct
                 create("CNBC International", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Fortune", "https://fortune.com/feed/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
@@ -52,13 +53,14 @@ public class DataSeeder implements CommandLineRunner {
                 // --- TED TALKS ---
                 create("TED Talks", "https://www.ted.com/talks/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
-                // --- 🏎SPORT ---
+                // --- SPORT ---
                 create("Motorsport.com (F1)", "https://www.motorsport.com/rss/f1/news/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("ESPN", "https://www.espn.com/espn/rss/news", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
                 // --- FASHION & LIFESTYLE ---
                 create("Vogue", "https://www.vogue.com/feed/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Elle Romania", "https://www.elle.ro/feed/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
+                // verify url
                 create("Hypebeast", "https://hypebeast.com/feeds/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Business of Fashion", "https://www.businessoffashion.com/feeds/all", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 

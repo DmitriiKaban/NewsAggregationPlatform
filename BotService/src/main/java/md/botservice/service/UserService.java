@@ -1,21 +1,27 @@
 package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import md.botservice.dto.SourceDto;
+import md.botservice.dto.UserInterestEvent;
 import md.botservice.dto.UserProfileResponse;
 import md.botservice.exceptions.UserNotFoundException;
 import md.botservice.models.User;
 import md.botservice.repository.UserRepository;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository repository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private static final String TOPIC_USER_INTERESTS = "user.interests.updated";
 
     public User findOrRegister(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
         return repository.findById(telegramUser.getId())
@@ -45,6 +51,15 @@ public class UserService {
         User user = findById(userId);
         user.setInterestsRaw(rawInterests);
         repository.save(user);
+
+        try {
+            UserInterestEvent event = new UserInterestEvent(userId, rawInterests);
+            kafkaTemplate.send(TOPIC_USER_INTERESTS, event);
+
+            log.info("Sent interest update for user {} to Kafka: {}", userId, rawInterests);
+        } catch (Exception e) {
+            log.error("Failed to send interest update to Kafka", e);
+        }
     }
 
     public void updateUser(User user) {

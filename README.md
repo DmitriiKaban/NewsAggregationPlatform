@@ -157,10 +157,10 @@ python scraper_main.py
 
 ## 🤖 Bot Commands
 
-| Command | Description |
-| --- | --- |
-| `/start` | Registers you with the system and shows the welcome menu. |
-| `/myinterests [text]` | Updates your preference profile. <br>
+| Command               | Description                                               |
+|-----------------------|-----------------------------------------------------------|
+| `/start`              | Registers you with the system and shows the welcome menu. |
+| `/myinterests [text]` | Updates your preference profile. <br>                     |
 
 <br> *Example:* `/myinterests AI, Nvidia, Formula 1` |
 | `/help` | Shows available commands and usage examples. |
