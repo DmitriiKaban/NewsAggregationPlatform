@@ -3,6 +3,7 @@ package md.botservice.commands;
 import md.botservice.models.Command;
 import md.botservice.models.Source;
 import md.botservice.models.TelegramCommands;
+import md.botservice.utils.FormatUtils;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -11,6 +12,7 @@ import org.telegram.telegrambots.meta.bots.AbsSender;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class ListSourcesCommandStrategy implements CommandStrategy {
@@ -23,6 +25,7 @@ public class ListSourcesCommandStrategy implements CommandStrategy {
     @Override
     public void execute(Command command, AbsSender sender) {
         Set<Source> sources = command.user().getSubscriptions();
+        sources.forEach( s -> s.setUrl(FormatUtils.getSimpleTelegramName(s.getUrl())));
 
         if (sources.isEmpty()) {
             sendMessage(sender, command.chatId(), "📭 You have no sources.\n\nUse the button below to add one:", createAddButtonMarkup());

@@ -13,7 +13,8 @@ public enum TelegramCommands {
     ADD_SOURCE("/addsource"),
     REMOVE_SOURCE("/removesource"),
     LIST_SOURCES("/sources"),
-    WEBAPP("/webapp");
+    WEBAPP("/webapp"),
+    SETTINGS("/settings");
 
     private final String command;
 

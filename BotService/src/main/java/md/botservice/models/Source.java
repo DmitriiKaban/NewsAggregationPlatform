@@ -20,7 +20,7 @@ public class Source {
     private SourceType type;
 
     @Enumerated(EnumType.STRING)
-    private TrustLevel trustLevel = TrustLevel.UGC;
+    private TrustLevel trustLevel = TrustLevel.USER_GENERATED_CONTENT;
 
     private boolean isActive = true;
 }

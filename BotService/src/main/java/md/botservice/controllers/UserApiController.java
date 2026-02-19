@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.DELETE, RequestMethod.OPTIONS})
+@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.DELETE, RequestMethod.OPTIONS, RequestMethod.PUT})
 public class UserApiController {
 
     private final UserService userService;
@@ -63,7 +63,38 @@ public class UserApiController {
             log.info("Source removed for user {}", userId);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            log.error("❌ Error removing source for user {}: {}", userId, e.getMessage());
+            log.error("Error removing source for user {}: {}", userId, e.getMessage());
+            throw e;
+        }
+    }
+
+    @PutMapping("/{userId}/settings/strict-filtering")
+    public ResponseEntity<Void> toggleStrictFiltering(
+            @PathVariable Long userId,
+            @RequestParam boolean enabled
+    ) {
+        try {
+            userService.updateUserFiltering(userId, enabled);
+            log.info("User {} set strict filtering to: {}", userId, enabled);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error updating strict filtering for user {}: {}", userId, e.getMessage());
+            throw e;
+        }
+    }
+
+    @PutMapping("/{userId}/sources/{sourceId}/read-all")
+    public ResponseEntity<Void> toggleSourceReadAll(
+            @PathVariable Long userId,
+            @PathVariable Long sourceId,
+            @RequestParam boolean readAll
+    ) {
+        try {
+            userService.updateReadAllNewsSource(userId, sourceId, readAll);
+            log.info("User {} source {} read-all set to: {}", userId, sourceId, readAll);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error updating read-all for user {}, source {}: {}", userId, sourceId, e.getMessage());
             throw e;
         }
     }

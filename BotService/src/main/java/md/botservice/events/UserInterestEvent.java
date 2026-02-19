@@ -1,4 +1,4 @@
-package md.botservice.dto;
+package md.botservice.events;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -4,6 +4,6 @@ public enum TrustLevel {
     OFFICIAL,
     VERIFIED_MEDIA,
     INFLUENCER,
-    UGC, // User-Generated Content
+    USER_GENERATED_CONTENT,
     SCAM
 }

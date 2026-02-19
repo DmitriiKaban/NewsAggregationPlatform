@@ -32,7 +32,7 @@ public class DataSeeder implements CommandLineRunner {
                 create("Ziarul de Gardă", "https://t.me/zdgmd", SourceType.TELEGRAM, TrustLevel.VERIFIED_MEDIA),
                 create("Agora.md", "https://t.me/agoramd", SourceType.TELEGRAM, TrustLevel.VERIFIED_MEDIA),
                 create("Point News", "https://t.me/PointNews", SourceType.TELEGRAM, TrustLevel.VERIFIED_MEDIA),
-                create("Chisinau vteme", "https://t.me/vtememd", SourceType.TELEGRAM, TrustLevel.UGC),
+                create("Chisinau vteme", "https://t.me/vtememd", SourceType.TELEGRAM, TrustLevel.USER_GENERATED_CONTENT),
 
                 // --- WORLD NEWS (Official RSS) ---
                 create("BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
@@ -40,7 +40,6 @@ public class DataSeeder implements CommandLineRunner {
                 create("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
                 // --- FINANCE & BUSINESS ---
-                // verify if url is correct
                 create("CNBC International", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Fortune", "https://fortune.com/feed/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
@@ -60,15 +59,13 @@ public class DataSeeder implements CommandLineRunner {
                 // --- FASHION & LIFESTYLE ---
                 create("Vogue", "https://www.vogue.com/feed/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Elle Romania", "https://www.elle.ro/feed/", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
-                // verify url
-                create("Hypebeast", "https://hypebeast.com/feeds/rss", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
                 create("Business of Fashion", "https://www.businessoffashion.com/feeds/all", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
                 // --- HEALTH ---
                 create("Medical News Today", "https://www.medicalnewstoday.com/feed", SourceType.RSS, TrustLevel.VERIFIED_MEDIA),
 
                 // --- FUN ---
-                create("Programmer Jokes", "https://t.me/programmerjokes", SourceType.TELEGRAM, TrustLevel.UGC)
+                create("Programmer Jokes", "https://t.me/programmerjokes", SourceType.TELEGRAM, TrustLevel.USER_GENERATED_CONTENT)
         );
 
         sourceRepository.saveAll(defaults);
