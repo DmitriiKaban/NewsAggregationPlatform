@@ -21,7 +21,7 @@ public class SourceUpdatePublisher {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String TOPIC = "user-sources";
+    private static final String TOPIC = "user.sources.updated";
 
     public void publishSourceUpdate(User user) {
         try {

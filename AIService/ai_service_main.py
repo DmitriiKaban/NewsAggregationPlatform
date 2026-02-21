@@ -10,7 +10,6 @@ from kafka import KafkaConsumer, KafkaProducer
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer, util
 
-# --- CONFIGURATION ---
 current_dir = Path(__file__).resolve().parent
 env_path = current_dir.parent / 'common' / '.env'
 load_dotenv(dotenv_path=env_path)
@@ -23,6 +22,7 @@ MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASS}@localhost:27017/?authSource=ad
 # Topics
 TOPIC_NEWS_RAW = "news.raw"
 TOPIC_USER_INTERESTS = "user.interests.updated"
+TOPIC_USER_SOURCES = "user.sources.updated"
 TOPIC_NOTIFICATIONS = "news.notification"
 HF_TOKEN = os.getenv('HUGGINGFACE_TOKEN')
 
@@ -32,7 +32,6 @@ if HF_TOKEN:
     print("Authenticating with Hugging Face...")
     login(token=HF_TOKEN)
 
-# --- 🧠 MODEL UPGRADE ---
 print("Loading Advanced Multilingual Model (E5-Large)...")
 model = SentenceTransformer(
     'intfloat/multilingual-e5-large',
@@ -57,7 +56,6 @@ def process_news_stream():
     1. SCENARIO 1: Read-All Source (Bypass AI completely)
        - User has this source in readAllPostsSources
        - Send ALL news from this source, NO AI filtering
-       - Highest priority
 
     2. SCENARIO 2: Strict Mode + AI Filtering
        - showOnlySubscribedSources = true
@@ -87,21 +85,19 @@ def process_news_stream():
             source_url = article.get('source')
 
             # Deduplication
+            # todo: add smart deduplication based on content (news may repeat)
             if articles_collection.find_one({"link": link}):
                 continue
 
             summary = article.get('summary', '')
             text_to_vectorize = f"passage: {title} - {summary}"
 
-            # Generate embeddings
             news_vector = model.encode(text_to_vectorize, normalize_embeddings=True).tolist()
 
-            # Save Article
             article_doc = {**article, "vector": news_vector, "processed_at": time.time()}
             articles_collection.insert_one(article_doc)
             print(f"✅ Processed: {title}")
 
-            # MATCHING LOGIC - Process each user
             users = list(users_collection.find({}))
 
             for user in users:
@@ -124,7 +120,7 @@ def process_news_stream():
                     }
                     producer.send(TOPIC_NOTIFICATIONS, value=notification)
                     print(f"📢 [Scenario 1] Read-All: User {user_id} - {title[:50]}")
-                    continue  # Skip AI filtering for this user
+                    continue
 
                 # ========================================
                 # SCENARIO 2: Strict Mode + AI Filtering
@@ -143,7 +139,7 @@ def process_news_stream():
                     similarity = util.cos_sim(news_vector, user_vector).item()
                     print(f"📊 [Scenario 2] Strict+AI: User {user_id}, Score: {similarity:.4f}")
 
-                    if similarity > 0.80:
+                    if similarity > 0.82:
                         notification = {
                             "userId": user_id,
                             "title": title,

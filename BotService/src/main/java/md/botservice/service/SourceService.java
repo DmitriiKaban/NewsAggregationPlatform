@@ -27,7 +27,6 @@ public class SourceService {
     public void subscribeUser(User user, String url) {
         String cleanUrl = FormatUtils.normalizeTelegramUrl(url);
 
-        // Verify Telegram channel exists
         if (!verifyTelegramChannel(cleanUrl)) {
             throw new RuntimeException("❌ Telegram channel not found or not accessible: " + url);
         }
@@ -37,7 +36,6 @@ public class SourceService {
         user.getSubscriptions().add(source);
         user = userService.updateUser(user);
 
-        // Publish to Kafka for AI service
         sourceUpdatePublisher.publishSourceUpdate(user);
 
         log.info("✅ User {} subscribed to source: {}", user.getId(), cleanUrl);
@@ -70,10 +68,6 @@ public class SourceService {
         log.info("✅ User {} unsubscribed from source ID: {}", user.getId(), sourceId);
     }
 
-    /**
-     * Verify that a Telegram channel exists and is accessible
-     * Tries to fetch the channel's preview page
-     */
     private boolean verifyTelegramChannel(String url) {
         try {
             log.info("🔍 Verifying Telegram channel: {}", url);
@@ -89,7 +83,6 @@ public class SourceService {
             return false;
         } catch (Exception e) {
             log.warn("⚠️  Could not verify channel (assuming exists): {} - {}", url, e.getMessage());
-            // If we can't verify (network issues, etc), assume it exists
             return true;
         }
     }
