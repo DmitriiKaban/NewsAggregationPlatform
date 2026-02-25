@@ -23,6 +23,9 @@ public class User {
     @Column(columnDefinition = "TEXT")
     private String interestsRaw;
 
+    @Column(name = "interests_vector", columnDefinition = "vector(1024)")
+    private String interestsVector;
+
     private LocalDateTime registeredAt;
 
     @Column(name = "show_only_subscribed_sources", nullable = false)

@@ -15,19 +15,24 @@ from dateutil import parser as date_parser
 from telethon.sync import TelegramClient
 import concurrent.futures
 
-# --- 1. CONFIGURATION ---
 current_dir = Path(__file__).resolve().parent
 env_path = current_dir.parent / "common" / ".env"
 load_dotenv(dotenv_path=env_path)
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 TOPIC_NAME = "news.raw"
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 API_ID = os.getenv("TELEGRAM_API_ID")
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 SESSION_NAME = "newsbot_session"
+
+DB_NAME = os.getenv("DB_NAME", "newsbot_db")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASS = os.getenv("DB_PASS", "password")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
 
 # Threading Config
 MAX_RSS_THREADS = 5
@@ -38,46 +43,27 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
 }
 
-print(f"🚀 Connecting to Kafka: {KAFKA_BROKER}")
-print(f"💾 Connecting to Redis: {REDIS_HOST}:{REDIS_PORT}")
-
 producer = KafkaProducer(
     bootstrap_servers=[KAFKA_BROKER],
     value_serializer=lambda x: json.dumps(x).encode("utf-8"),
 )
-
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-
 
 def get_sources_from_db():
     conn = None
     try:
         conn = psycopg2.connect(
-            dbname="newsbot_db",
-            user="newsbot_admin",
-            password="newsbot_pass",
-            host="localhost",
-            port="5433",
+            dbname=DB_NAME, user=DB_USER, password=DB_PASS, host=DB_HOST, port=DB_PORT
         )
         cur = conn.cursor()
         cur.execute("SELECT name, url, type FROM sources WHERE is_active = true")
         rows = cur.fetchall()
-        db_sources = []
-        for row in rows:
-            db_sources.append({
-                "name": row[0],
-                "url": row[1],
-                "type": "telegram" if "t.me" in row[1] else "rss",
-                "channel": row[1].split("/")[-1] if "t.me" in row[1] else None,
-                "filter_hours": 24,
-            })
-        return db_sources
+        return [{"name": r[0], "url": r[1], "type": "telegram" if "t.me" in r[1] else "rss", "channel": r[1].split("/")[-1] if "t.me" in r[1] else None, "filter_hours": 24} for r in rows]
     except Exception as e:
-        print(f"❌ Database error: {e}")
+        print(f"Database error: {e}")
         return []
     finally:
-        if conn:
-            conn.close()
+        if conn: conn.close()
 
 def clean_text(text):
     if not text: return ""
@@ -124,7 +110,6 @@ def send_to_kafka(source, title, link, summary, full_text, date_obj):
 
 
 def process_single_entry(entry, source_name):
-    """Processes a single RSS entry. Used by the inner thread pool."""
     link = entry.link
     if is_processed(link):
         return 0
@@ -143,7 +128,7 @@ def process_single_entry(entry, source_name):
     return 1
 
 def scrape_rss(source):
-    print(f"   📡 [START] RSS: {source['name']}")
+    print(f"Start RSS: {source['name']}")
     try:
         resp = requests.get(source["url"], headers=HEADERS, timeout=10)
         feed = feedparser.parse(resp.content)
@@ -151,22 +136,20 @@ def scrape_rss(source):
             return 0
 
         count = 0
-        # INNER THREAD POOL: Fetch multiple articles from this feed concurrently
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_ARTICLE_THREADS) as executor:
             futures = [executor.submit(process_single_entry, entry, source["name"]) for entry in feed.entries]
             for future in concurrent.futures.as_completed(futures):
                 count += future.result()
 
-        print(f"   ✅ [DONE] RSS: {source['name']} ({count} new)")
+        print(f"RSS: {source['name']} ({count} new)")
         return count
     except Exception as e:
-        print(f"      ❌ RSS Error ({source['name']}): {e}")
+        print(f"RSS Error ({source['name']}): {e}")
         return 0
 
 
 def scrape_telegram(client, source):
-    """Scrapes a single Telegram channel."""
-    print(f"   ✈️ [START] Telegram: {source['name']}")
+    print(f"Telegram: {source['name']}")
     count = 0
     try:
         entity = client.get_entity(source["channel"])
@@ -188,15 +171,15 @@ def scrape_telegram(client, source):
             send_to_kafka(source["name"], title, link, full_text, full_text, pub_date)
             count += 1
 
-        print(f"   ✅ [DONE] Telegram: {source['name']} ({count} new)")
+        print(f"[DONE] : {source['name']} ({count} new)")
     except Exception as e:
-        print(f"      ❌ TG Error ({source['name']}): {e}")
+        print(f"TG Error ({source['name']}): {e}")
     return count
 
 
 def job():
     start_time = time.time()
-    print(f"\n🔄 Cycle Started: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\nCycle Started: {datetime.now().strftime('%H:%M:%S')}")
 
     db_sources = get_sources_from_db()
     rss_sources = [s for s in db_sources if s["type"] == "rss"]
@@ -205,28 +188,28 @@ def job():
     total_rss = 0
     total_tg = 0
 
-    # OUTER THREAD POOL: Scrape multiple RSS feeds concurrently
+    # Scrape multiple RSS feeds concurrently
     if rss_sources:
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_RSS_THREADS) as executor:
             futures = [executor.submit(scrape_rss, source) for source in rss_sources]
             for future in concurrent.futures.as_completed(futures):
                 total_rss += future.result()
 
-    # Telegram (Sequential to avoid API bans/FloodWait errors)
+    # Telegram scrape sequentially
     if tg_sources:
         if not API_ID or not API_HASH:
-            print("      ❌ Skipped Telegram: Missing Credentials")
+            print("Skipped Telegram: Missing Credentials")
         else:
             try:
                 with TelegramClient(SESSION_NAME, API_ID, API_HASH) as client:
                     for source in tg_sources:
                         total_tg += scrape_telegram(client, source)
             except Exception as e:
-                print(f"      ❌ Telegram Connection Failed: {e}")
+                print(f"Telegram Connection Failed: {e}")
 
     elapsed = time.time() - start_time
     total = total_rss + total_tg
-    print(f"💤 Cycle Complete. Sent {total} articles in {elapsed:.2f} seconds.")
+    print(f"Sent {total} articles in {elapsed:.2f} seconds.")
 
 
 schedule.every(10).minutes.do(job)
