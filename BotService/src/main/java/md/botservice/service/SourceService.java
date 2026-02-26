@@ -2,6 +2,7 @@ package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import md.botservice.dto.TopSourceProjection;
 import md.botservice.exceptions.SourceNotFound;
 import md.botservice.models.Source;
 import md.botservice.models.SourceType;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +31,7 @@ public class SourceService {
         String cleanUrl = FormatUtils.normalizeTelegramUrl(url);
 
         if (!verifyTelegramChannel(cleanUrl)) {
-            throw new RuntimeException("❌ Telegram channel not found or not accessible: " + url);
+            throw new RuntimeException("Telegram channel not found or not accessible: " + url);
         }
 
         Source source = findOrSaveSource(cleanUrl);
@@ -38,7 +41,7 @@ public class SourceService {
 
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} subscribed to source: {}", user.getId(), cleanUrl);
+        log.info("User {} subscribed to source: {}", user.getId(), cleanUrl);
     }
 
     @Transactional
@@ -51,7 +54,7 @@ public class SourceService {
         // Publish to Kafka for AI service
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} unsubscribed from source: {}", user.getId(), fullUrl);
+        log.info("User {} unsubscribed from source: {}", user.getId(), fullUrl);
     }
 
     @Transactional
@@ -65,24 +68,24 @@ public class SourceService {
         // Publish to Kafka for AI service
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} unsubscribed from source ID: {}", user.getId(), sourceId);
+        log.info("User {} unsubscribed from source ID: {}", user.getId(), sourceId);
     }
 
     private boolean verifyTelegramChannel(String url) {
         try {
-            log.info("🔍 Verifying Telegram channel: {}", url);
+            log.info("Verifying Telegram channel: {}", url);
 
             // Make a HEAD request to check if channel exists
             restTemplate.headForHeaders(url);
 
-            log.info("✅ Channel verified: {}", url);
+            log.info("Channel verified: {}", url);
             return true;
 
         } catch (HttpClientErrorException.NotFound e) {
-            log.warn("❌ Channel not found: {}", url);
+            log.warn("Channel not found: {}", url);
             return false;
         } catch (Exception e) {
-            log.warn("⚠️  Could not verify channel (assuming exists): {} - {}", url, e.getMessage());
+            log.warn("Could not verify channel (assuming exists): {} - {}", url, e.getMessage());
             return true;
         }
     }
@@ -112,7 +115,7 @@ public class SourceService {
 
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} set showOnlySubscribedSources to: {}", user.getId(), enabled);
+        log.info("User {} set showOnlySubscribedSources to: {}", user.getId(), enabled);
     }
 
     @Transactional
@@ -128,7 +131,7 @@ public class SourceService {
 
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} added read-all source: {}", user.getId(), url);
+        log.info("User {} added read-all source: {}", user.getId(), url);
     }
 
     @Transactional
@@ -140,7 +143,7 @@ public class SourceService {
 
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} removed read-all source: {}", user.getId(), url);
+        log.info("User {} removed read-all source: {}", user.getId(), url);
     }
 
     public Source findByUrl(String url) {
@@ -152,5 +155,9 @@ public class SourceService {
     public void updateUserSourceFiltering(Long userId, String url, boolean readAll) {
         Source source = findByUrl(url);
         userService.updateReadAllNewsSource(userId, source.getId(), readAll);
+    }
+
+    public List<TopSourceProjection> getTopSources() {
+        return sourceRepository.getTopSources();
     }
 }

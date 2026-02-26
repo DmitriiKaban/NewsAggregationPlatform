@@ -9,7 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "app_users")
+@Table(name = "users")
 @Data
 @NoArgsConstructor
 public class User {
@@ -19,11 +19,12 @@ public class User {
     private String username;
     private String firstName;
     private String lastName;
+    private LocalDateTime lastActiveAt;
 
     @Column(columnDefinition = "TEXT")
     private String interestsRaw;
 
-    @Column(name = "interests_vector", columnDefinition = "vector(1024)")
+    @Column(name = "interests_vector", columnDefinition = "vector(1024)", insertable = false, updatable = false)
     private String interestsVector;
 
     private LocalDateTime registeredAt;

@@ -5,3 +5,4 @@ pymongo
 sentence-transformers
 torch
 python-dotenv
+psycopg2

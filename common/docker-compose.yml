@@ -34,7 +34,7 @@ services:
   # 3. PostgreSQL
   # ----------------------------
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: newsbot-postgres
     ports:
       - "5433:5432"
@@ -46,21 +46,7 @@ services:
       - postgres_data_news:/var/lib/postgresql/data
 
   # ----------------------------
-  # 4. MongoDB
-  # ----------------------------
-  mongodb:
-    image: mongo:6.0
-    container_name: newsbot-mongo
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-    volumes:
-      - mongo_data:/data/db
-
-  # ----------------------------
-  # 5. Redis for scraper
+  # 4. Redis for scraper
   # ----------------------------
   redis:
     image: redis:alpine

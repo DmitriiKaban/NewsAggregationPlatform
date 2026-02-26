@@ -17,6 +17,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 public class TelegramBotService extends TelegramLongPollingBot {
 
     private final UserService userService;
+    private final UserActivityService activityService;
     private final CommandEffectFactory commandFactory;
     private final WebAppDataHandler webAppDataHandler;
     private final CallbackQueryHandler callbackQueryHandler;
@@ -32,7 +33,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             UserStateManager stateManager,
             StateMessageHandler stateMessageHandler,
             @Value("${telegram.bot.username}") String botUsername,
-            @Value("${telegram.bot.token}") String botToken
+            @Value("${telegram.bot.token}") String botToken, UserActivityService activityService
     ) {
         super(botToken);
         this.userService = userService;
@@ -42,6 +43,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         this.stateManager = stateManager;
         this.stateMessageHandler = stateMessageHandler;
         this.botUsername = botUsername;
+        this.activityService = activityService;
     }
 
     @Override
@@ -51,6 +53,9 @@ public class TelegramBotService extends TelegramLongPollingBot {
             if (update.hasCallbackQuery()) {
                 log.info("Received callback query");
                 callbackQueryHandler.handleCallbackQuery(update.getCallbackQuery(), this);
+
+                Long userId = update.getCallbackQuery().getFrom().getId();
+                activityService.recordActivity(userId);
                 return;
             }
 
@@ -71,6 +76,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             var telegramUser = update.getMessage().getFrom();
 
             User user = userService.findOrRegister(telegramUser);
+            activityService.recordActivity(user.getId());
 
             // Check if user is in a state awaiting input
             if (stateManager.isAwaitingInput(user.getId())) {
