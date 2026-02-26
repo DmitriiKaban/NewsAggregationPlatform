@@ -27,6 +27,6 @@ public enum Language {
                 return lang;
             }
         }
-        return EN;
+        return null;
     }
 }

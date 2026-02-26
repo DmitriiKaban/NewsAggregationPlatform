@@ -39,6 +39,7 @@ public class StartCommandStrategy extends AbstractCommandStrategy {
             return;
         }
 
+        log.info(lang.getDisplayName());
         String welcomeText = messageService.get("welcome.full_text", lang);
         sendWithMainMenu(sender, command.chatId(), welcomeText, lang);
     }

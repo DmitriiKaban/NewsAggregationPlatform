@@ -22,7 +22,7 @@ public class User {
     private LocalDateTime lastActiveAt;
 
     @Column(name = "preferred_language", length = 5)
-    private String preferredLanguage = "en";
+    private String preferredLanguage = null;
 
     @Column(columnDefinition = "TEXT")
     private String interestsRaw;
@@ -54,7 +54,8 @@ public class User {
     public Language getLanguage() {
         return Language.fromCode(preferredLanguage);
     }
+
     public void setLanguage(Language language) {
-        this.preferredLanguage = language.getCode();
+        this.preferredLanguage = language != null ? language.getCode() : null;
     }
 }

@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     show_only_subscribed_sources BOOLEAN NOT NULL DEFAULT FALSE,
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    preferred_language VARCHAR(5) DEFAULT 'en'
+    preferred_language VARCHAR(5)
     CHECK (preferred_language IN ('en', 'ro', 'ru'))
     );
 

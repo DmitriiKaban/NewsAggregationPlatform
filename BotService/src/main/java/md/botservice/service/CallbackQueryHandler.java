@@ -86,13 +86,11 @@ public class CallbackQueryHandler {
         String langCode = data.substring(5).toLowerCase(); // "LANG_EN" -> "en"
         Language language = Language.fromCode(langCode);
 
-        // Save language preference
         user.setLanguage(language);
         userService.updateUser(user);
 
-        log.info("✅ User {} selected language: {}", user.getId(), language.getDisplayName());
+        log.info("User {} selected language: {}", user.getId(), language.getDisplayName());
 
-        // Edit the message to show confirmation
         EditMessageText editMessage = new EditMessageText();
         editMessage.setChatId(String.valueOf(chatId));
         editMessage.setMessageId(messageId);
@@ -104,7 +102,6 @@ public class CallbackQueryHandler {
             log.error("Failed to edit message", e);
         }
 
-        // Send welcome message in selected language
         sendWelcomeMessage(user, chatId, sender);
     }
 
