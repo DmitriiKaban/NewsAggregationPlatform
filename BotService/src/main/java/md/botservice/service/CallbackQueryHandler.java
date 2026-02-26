@@ -2,158 +2,214 @@ package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import md.botservice.commands.MyInterestsCommandStrategy;
+import md.botservice.models.Language;
 import md.botservice.models.User;
-import org.springframework.stereotype.Service;
+import md.botservice.utils.KeyboardHelper;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ForceReplyKeyboard;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Slf4j
-@Service
+@Component
 @RequiredArgsConstructor
 public class CallbackQueryHandler {
 
-    private final MyInterestsCommandStrategy myInterestsCommandStrategy;
     private final UserStateManager stateManager;
-    private final UserService userService;
     private final SourceService sourceService;
+    private final UserService userService;
+    private final MessageService messageService;
+    private final KeyboardHelper keyboardHelper;
 
     public void handleCallbackQuery(CallbackQuery callbackQuery, AbsSender sender) {
-        String callbackData = callbackQuery.getData();
-        Long chatId = callbackQuery.getMessage().getChatId();
-        String queryId = callbackQuery.getId();
-        Long userId = callbackQuery.getFrom().getId();
+        String data = callbackQuery.getData();
+        long chatId = callbackQuery.getMessage().getChatId();
+        int messageId = callbackQuery.getMessage().getMessageId();
+        var telegramUser = callbackQuery.getFrom();
 
-        log.info("Received callback: {} from chat {}, user {}", callbackData, chatId, userId);
+        User user = userService.findOrRegister(telegramUser);
 
         try {
-            if (callbackData.startsWith("REMOVE_SOURCE:")) {
-                handleRemoveSource(userId, callbackData, chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
-            } else {
-                switch (callbackData) {
-                    case "update_interests" -> handleUpdateInterests(userId, chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
-                    case "keep_interests" -> handleKeepInterests(chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
-                    case "CMD_ADD_SOURCE" -> handleAddSource(userId, chatId, sender, queryId, callbackQuery.getMessage().getMessageId());
-                    default -> log.warn("Unknown callback data: {}", callbackData);
-                }
+            // LANGUAGE SELECTION
+            if (data.startsWith("LANG_")) {
+                handleLanguageSelection(data, user, chatId, messageId, sender);
+                answerCallback(callbackQuery, sender);
+                return;
             }
+
+            // UPDATE INTERESTS
+            if ("UPDATE_INTERESTS".equals(data)) {
+                handleUpdateInterests(user, chatId, sender);
+                answerCallback(callbackQuery, sender);
+                return;
+            }
+
+            // KEEP INTERESTS
+            if ("KEEP_INTERESTS".equals(data)) {
+                handleKeepInterests(user, chatId, sender);
+                answerCallback(callbackQuery, sender);
+                return;
+            }
+
+            // ADD SOURCE
+            if ("CMD_ADD_SOURCE".equals(data)) {
+                handleAddSource(user, chatId, sender);
+                answerCallback(callbackQuery, sender);
+                return;
+            }
+
+            // REMOVE SOURCE
+            if (data.startsWith("REMOVE_SOURCE:")) {
+                String sourceIdStr = data.substring("REMOVE_SOURCE:".length());
+                Long sourceId = Long.parseLong(sourceIdStr);
+                handleRemoveSource(user, sourceId, chatId, sender);
+                answerCallback(callbackQuery, sender);
+                return;
+            }
+
+            // TOGGLE STRICT MODE
+            if ("TOGGLE_STRICT_MODE".equals(data)) {
+                handleToggleStrictMode(user, chatId, messageId, sender);
+                answerCallback(callbackQuery, sender);
+                return;
+            }
+
         } catch (Exception e) {
-            log.error("Error handling callback query", e);
+            log.error("Error handling callback query: {}", data, e);
         }
     }
 
-    private void handleUpdateInterests(Long userId, Long chatId, AbsSender sender, String queryId, Integer messageId) throws TelegramApiException {
-        log.info("Setting user {} state to AWAITING_INTERESTS", userId);
+    private void handleLanguageSelection(String data, User user, long chatId, int messageId, AbsSender sender) {
+        String langCode = data.substring(5).toLowerCase(); // "LANG_EN" -> "en"
+        Language language = Language.fromCode(langCode);
 
-        stateManager.setState(userId, UserStateManager.State.AWAITING_INTERESTS);
+        // Save language preference
+        user.setLanguage(language);
+        userService.updateUser(user);
 
-        AnswerCallbackQuery answer = new AnswerCallbackQuery();
-        answer.setCallbackQueryId(queryId);
-        answer.setText("Ready to update interests");
-        sender.execute(answer);
+        log.info("✅ User {} selected language: {}", user.getId(), language.getDisplayName());
 
+        // Edit the message to show confirmation
         EditMessageText editMessage = new EditMessageText();
         editMessage.setChatId(String.valueOf(chatId));
         editMessage.setMessageId(messageId);
-        editMessage.setText("✏️ Updating interests...");
-        editMessage.setParseMode("Markdown");
-        sender.execute(editMessage);
-
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("🎯 *Enter Your New Interests*\n\nReply to this message with keywords separated by commas.\n\n_Example: AI, Politics MD, Formula 1_");
-        message.setParseMode("Markdown");
-        message.setReplyMarkup(new ForceReplyKeyboard(true));
-        sender.execute(message);
-
-        log.info("User {} state set to AWAITING_INTERESTS", userId);
-    }
-
-    private void handleKeepInterests(Long chatId, AbsSender sender, String queryId, Integer messageId) throws TelegramApiException {
-        AnswerCallbackQuery answer = new AnswerCallbackQuery();
-        answer.setCallbackQueryId(queryId);
-        answer.setText("Interests kept unchanged ✅");
-        sender.execute(answer);
-
-        EditMessageText editMessage = new EditMessageText();
-        editMessage.setChatId(String.valueOf(chatId));
-        editMessage.setMessageId(messageId);
-        editMessage.setText("✅ *Interests Kept*\n\nYour interests remain unchanged.");
-        editMessage.setParseMode("Markdown");
-        sender.execute(editMessage);
-
-        myInterestsCommandStrategy.confirmKeepInterests(sender, chatId);
-    }
-
-    private void handleAddSource(Long userId, Long chatId, AbsSender sender, String queryId, Integer messageId) throws TelegramApiException {
-        log.info("Setting user {} state to AWAITING_SOURCE_URL", userId);
-
-        stateManager.setState(userId, UserStateManager.State.AWAITING_SOURCE_URL);
-
-        AnswerCallbackQuery answer = new AnswerCallbackQuery();
-        answer.setCallbackQueryId(queryId);
-        answer.setText("Ready to add source");
-        sender.execute(answer);
-
-        EditMessageText editMessage = new EditMessageText();
-        editMessage.setChatId(String.valueOf(chatId));
-        editMessage.setMessageId(messageId);
-        editMessage.setText("➕ Adding source...");
-        editMessage.setParseMode("Markdown");
-        sender.execute(editMessage);
-
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("📡 *Add a News Source*\n\nReply with a Telegram channel link or username.\n\n_Example: https://t.me/durov or @durov_");
-        message.setParseMode("Markdown");
-        message.setReplyMarkup(new ForceReplyKeyboard(true));
-        sender.execute(message);
-
-        log.info("User {} state set to AWAITING_SOURCE_URL", userId);
-    }
-
-    private void handleRemoveSource(Long userId, String callbackData, Long chatId, AbsSender sender, String queryId, Integer messageId) throws TelegramApiException {
-        // Extract source ID from callback data: "REMOVE_SOURCE:123"
-        String[] parts = callbackData.split(":");
-        if (parts.length != 2) {
-            log.error("Invalid callback data format: {}", callbackData);
-            return;
-        }
-
-        Long sourceId = Long.parseLong(parts[1]);
-        log.info("Removing source {} for user {}", sourceId, userId);
+        editMessage.setText(messageService.get("settings.language_changed", language));
 
         try {
-            User user = userService.findById(userId);
+            sender.execute(editMessage);
+        } catch (TelegramApiException e) {
+            log.error("Failed to edit message", e);
+        }
+
+        // Send welcome message in selected language
+        sendWelcomeMessage(user, chatId, sender);
+    }
+
+    private void sendWelcomeMessage(User user, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
+
+        String welcomeText = messageService.get("welcome.title", lang) + "\n\n" +
+                messageService.get("welcome.description", lang) + "\n\n" +
+                messageService.get("welcome.quick_start", lang);
+
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(welcomeText);
+        message.setParseMode("HTML");
+        message.setReplyMarkup(keyboardHelper.getMainMenuKeyboard(lang));
+
+        try {
+            sender.execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send welcome message", e);
+        }
+    }
+
+    private void handleUpdateInterests(User user, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
+        stateManager.setState(user.getId(), UserStateManager.State.AWAITING_INTERESTS);
+
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(messageService.get("interests.prompt", lang));
+        message.setParseMode("HTML");
+        message.setReplyMarkup(org.telegram.telegrambots.meta.api.objects.replykeyboard.ForceReplyKeyboard.builder()
+                .forceReply(true)
+                .build());
+
+        try {
+            sender.execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Error sending interests prompt", e);
+        }
+    }
+
+    private void handleKeepInterests(User user, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("✅ " + messageService.get("interests.current", lang));
+
+        try {
+            sender.execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Error confirming interests", e);
+        }
+    }
+
+    private void handleAddSource(User user, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
+        stateManager.setState(user.getId(), UserStateManager.State.AWAITING_SOURCE_URL);
+
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(messageService.get("sources.add_prompt", lang));
+        message.setParseMode("HTML");
+        message.setReplyMarkup(org.telegram.telegrambots.meta.api.objects.replykeyboard.ForceReplyKeyboard.builder()
+                .forceReply(true)
+                .build());
+
+        try {
+            sender.execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Error sending add source prompt", e);
+        }
+    }
+
+    private void handleRemoveSource(User user, Long sourceId, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
+        try {
             sourceService.unsubscribeUser(user, sourceId);
 
-            AnswerCallbackQuery answer = new AnswerCallbackQuery();
-            answer.setCallbackQueryId(queryId);
-            answer.setText("✅ Source removed");
-            sender.execute(answer);
+            SendMessage message = new SendMessage();
+            message.setChatId(String.valueOf(chatId));
+            message.setText(messageService.get("sources.removed", lang));
 
-            EditMessageText editMessage = new EditMessageText();
-            editMessage.setChatId(String.valueOf(chatId));
-            editMessage.setMessageId(messageId);
-            editMessage.setText("✅ *Source Removed*\n\nThe source has been removed from your subscriptions.");
-            editMessage.setParseMode("Markdown");
-            sender.execute(editMessage);
-
-            log.info("Removed source {} for user {}", sourceId, userId);
-
+            sender.execute(message);
         } catch (Exception e) {
-            log.error("Failed to remove source {} for user {}", sourceId, userId, e);
+            log.error("Error removing source", e);
+        }
+    }
 
-            AnswerCallbackQuery answer = new AnswerCallbackQuery();
-            answer.setCallbackQueryId(queryId);
-            answer.setText("❌ Failed to remove source");
-            answer.setShowAlert(true);
+    private void handleToggleStrictMode(User user, long chatId, int messageId, AbsSender sender) {
+        boolean newState = !user.isShowOnlySubscribedSources();
+        sourceService.setShowOnlySubscribedSources(user, newState);
+
+        // Refresh settings message
+        // (You can implement this to update the settings menu)
+    }
+
+    private void answerCallback(CallbackQuery callbackQuery, AbsSender sender) {
+        AnswerCallbackQuery answer = new AnswerCallbackQuery();
+        answer.setCallbackQueryId(callbackQuery.getId());
+
+        try {
             sender.execute(answer);
+        } catch (TelegramApiException e) {
+            log.error("Error answering callback", e);
         }
     }
 }

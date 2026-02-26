@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import md.botservice.models.Language;
 import md.botservice.models.User;
 import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,8 @@ public class WebAppDataHandler {
     private final UserService userService;
     private final SourceService sourceService;
     private final ObjectMapper objectMapper;
+    private final MessageService messageService;
+    private final KeyboardHelper keyboardHelper;
 
     public void handleWebAppData(Update update, AbsSender sender) {
         WebAppData webAppData = update.getMessage().getWebAppData();
@@ -48,46 +51,53 @@ public class WebAppDataHandler {
 
         } catch (Exception e) {
             log.error("Error processing web app data", e);
-            sendResponse(sender, chatId, "❌ Something went wrong processing your request.");
+            sendResponse(sender, chatId, messageService.get("webapp.error.processing", Language.EN), Language.EN);
         }
     }
 
     private void handleSaveInterests(User user, JsonNode json, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
         String interests = json.path("interests").asText();
 
         user.setInterestsRaw(interests);
         userService.updateUser(user);
 
-        sendResponse(sender, chatId,
-                "✅ *Interests Updated!*\n\nI'll now look for news about:\n`" + interests + "`");
+        String successMsg = messageService.get("webapp.interests.updated", lang, interests);
+        sendResponse(sender, chatId, successMsg, lang);
     }
 
     private void handleAddSource(User user, JsonNode json, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
         String url = json.path("url").asText();
         if (url.isEmpty()) url = json.path("source").asText();
 
         try {
             sourceService.subscribeUser(user, url);
-            sendResponse(sender, chatId, "✅ *Source Added!*\n\nNow following: `" + url + "`");
+            String successMsg = messageService.get("webapp.source.added", lang, url);
+            sendResponse(sender, chatId, successMsg, lang);
         } catch (Exception e) {
             log.error("Failed to add source via WebApp", e);
-            sendResponse(sender, chatId, "❌ Failed to add source. It might be invalid or duplicate.");
+            sendResponse(sender, chatId, messageService.get("webapp.source.add_failed", lang), lang);
         }
     }
 
     private void handleRemoveSource(User user, JsonNode json, long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
         String url = json.path("url").asText();
+
         sourceService.unsubscribeUser(user, url);
-        sendResponse(sender, chatId, "🗑 Source removed: `" + url + "`");
+
+        String removedMsg = messageService.get("webapp.source.removed", lang, url);
+        sendResponse(sender, chatId, removedMsg, lang);
     }
 
-    private void sendResponse(AbsSender sender, long chatId, String text) {
+    private void sendResponse(AbsSender sender, long chatId, String text, Language lang) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(text);
-        message.setParseMode("Markdown");
+        message.setParseMode("HTML");
 
-        message.setReplyMarkup(KeyboardHelper.getMainMenuKeyboard());
+        message.setReplyMarkup(keyboardHelper.getMainMenuKeyboard(lang));
 
         try {
             sender.execute(message);

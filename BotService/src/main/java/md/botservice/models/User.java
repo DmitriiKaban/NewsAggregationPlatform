@@ -21,6 +21,9 @@ public class User {
     private String lastName;
     private LocalDateTime lastActiveAt;
 
+    @Column(name = "preferred_language", length = 5)
+    private String preferredLanguage = "en";
+
     @Column(columnDefinition = "TEXT")
     private String interestsRaw;
 
@@ -47,4 +50,11 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "source_id")
     )
     private Set<Source> readAllPostsSources = new HashSet<>();
+
+    public Language getLanguage() {
+        return Language.fromCode(preferredLanguage);
+    }
+    public void setLanguage(Language language) {
+        this.preferredLanguage = language.getCode();
+    }
 }

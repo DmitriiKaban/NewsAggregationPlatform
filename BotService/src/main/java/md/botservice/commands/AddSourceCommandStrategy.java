@@ -1,18 +1,26 @@
 package md.botservice.commands;
 
-import lombok.RequiredArgsConstructor;
 import md.botservice.models.Command;
+import md.botservice.models.Language;
 import md.botservice.models.TelegramCommands;
+import md.botservice.service.MessageService;
 import md.botservice.service.SourceService;
 import md.botservice.utils.FormatUtils;
+import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 
 @Component
-@RequiredArgsConstructor
-public class AddSourceCommandStrategy implements CommandStrategy {
+public class AddSourceCommandStrategy extends AbstractCommandStrategy {
 
     private final SourceService sourceService;
+    private final MessageService messageService;
+
+    public AddSourceCommandStrategy(KeyboardHelper keyboardHelper, SourceService sourceService, MessageService messageService) {
+        super(keyboardHelper);
+        this.sourceService = sourceService;
+        this.messageService = messageService;
+    }
 
     @Override
     public boolean supports(TelegramCommands command) {
@@ -21,20 +29,20 @@ public class AddSourceCommandStrategy implements CommandStrategy {
 
     @Override
     public void execute(Command command, AbsSender sender) {
+        Language lang = command.user().getLanguage();
         String url = command.commandParam();
 
         if (url == null || url.isEmpty()) {
-            sendForceReply(sender, command.chatId(),
-                    "*Add a News Source*\n\nReply with a Telegram channel link or name.\n\nExample: `https://t.me/durov` or simply `durov`");
+            sendForceReply(sender, command.chatId(), messageService.get("source.add_instruction", lang));
             return;
         }
 
         try {
             sourceService.subscribeUser(command.user(), url);
-            sendWithMainMenu(sender, command.chatId(),
-                    "✅ *Source Added!*\n\nI'll monitor news from:\n`" + FormatUtils.escapeMarkdownV2(url) + "`");
+            String successMsg = messageService.get("sources.added", lang, FormatUtils.escapeHtml(url));
+            sendWithMainMenu(sender, command.chatId(), successMsg, lang);
         } catch (Exception e) {
-            sendWithMainMenu(sender, command.chatId(), "❌ Failed to add source. Please check the URL.");
+            sendWithMainMenu(sender, command.chatId(), messageService.get("source.add_failed", lang), lang);
         }
     }
 }

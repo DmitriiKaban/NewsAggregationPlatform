@@ -61,7 +61,8 @@ public class UserService {
                 user.getLastName(),
                 user.getInterestsRaw(),
                 sourceDtos,
-                user.isShowOnlySubscribedSources()
+                user.isShowOnlySubscribedSources(),
+                user.getPreferredLanguage()
         );
     }
 

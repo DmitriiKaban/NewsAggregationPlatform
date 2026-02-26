@@ -12,15 +12,17 @@ CREATE TABLE IF NOT EXISTS sources (
     );
 
 CREATE TABLE IF NOT EXISTS users (
-                                         id BIGINT PRIMARY KEY,
-                                         username VARCHAR(255),
+                                     id BIGINT PRIMARY KEY,
+                                     username VARCHAR(255),
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     interests_raw TEXT,
     interests_vector vector(1024),
     show_only_subscribed_sources BOOLEAN NOT NULL DEFAULT FALSE,
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    preferred_language VARCHAR(5) DEFAULT 'en'
+    CHECK (preferred_language IN ('en', 'ro', 'ru'))
     );
 
 CREATE TABLE IF NOT EXISTS articles (
@@ -69,8 +71,10 @@ CREATE TABLE IF NOT EXISTS user_activity (
                                UNIQUE(user_id, activity_date)
 );
 
-CREATE INDEX idx_user_activity_date ON user_activity(activity_date);
-CREATE INDEX idx_user_activity_user_date ON user_activity(user_id, activity_date);
 
+
+CREATE INDEX IF NOT EXISTS idx_user_activity_date ON user_activity(activity_date);
+CREATE INDEX IF NOT EXISTS idx_user_activity_user_date ON user_activity(user_id, activity_date);
+CREATE INDEX IF NOT EXISTS idx_users_language ON users(preferred_language);
 CREATE INDEX IF NOT EXISTS articles_vector_idx ON articles USING hnsw (vector vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS users_vector_idx ON users USING hnsw (interests_vector vector_cosine_ops);

@@ -2,6 +2,7 @@ package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import md.botservice.models.Language;
 import md.botservice.models.User;
 import md.botservice.utils.FormatUtils;
 import md.botservice.utils.KeyboardHelper;
@@ -18,6 +19,8 @@ public class StateMessageHandler {
     private final UserStateManager stateManager;
     private final UserService userService;
     private final SourceService sourceService;
+    private final MessageService messageService;
+    private final KeyboardHelper keyboardHelper;
 
     public void handleStateMessage(User user, String text, Long chatId, AbsSender sender) {
         UserStateManager.State state = stateManager.getState(user.getId());
@@ -35,44 +38,48 @@ public class StateMessageHandler {
     }
 
     private void handleInterestsInput(User user, String text, Long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
+
         try {
             userService.updateInterests(user.getId(), text);
-
             stateManager.clearState(user.getId());
 
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
-            message.setText("✅ *Interests Updated!*\n\nI'll now look for news about:\n`" + text + "`");
-            message.setParseMode("Markdown");
-            message.setReplyMarkup(KeyboardHelper.getMainMenuKeyboard());
+            message.setText(messageService.get("interests.updated", lang, text));
+            message.setParseMode("HTML");
+
+            message.setReplyMarkup(keyboardHelper.getMainMenuKeyboard(lang));
 
             sender.execute(message);
 
             log.info("Updated interests for user {}", user.getId());
 
         } catch (Exception e) {
-            log.error("❌ Failed to update interests for user {}", user.getId(), e);
+            log.error("Failed to update interests for user {}", user.getId(), e);
             stateManager.clearState(user.getId());
 
-            sendError(chatId, "Failed to update interests. Please try again.", sender);
+            String errorText = messageService.get("state.error.interests", lang);
+            sendError(chatId, errorText, sender, lang);
         }
     }
 
     private void handleSourceInput(User user, String text, Long chatId, AbsSender sender) {
+        Language lang = user.getLanguage();
         log.info("Processing source input for user {}: {}", user.getId(), text);
 
         try {
             String normalizedUrl = FormatUtils.normalizeTelegramUrl(text);
 
             sourceService.subscribeUser(user, normalizedUrl);
-
             stateManager.clearState(user.getId());
 
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
-            message.setText("✅ *Source Added!*\n\nI'll monitor news from:\n`" + normalizedUrl + "`");
-            message.setParseMode("Markdown");
-            message.setReplyMarkup(KeyboardHelper.getMainMenuKeyboard());
+            message.setText(messageService.get("sources.added", lang, normalizedUrl));
+            message.setParseMode("HTML");
+
+            message.setReplyMarkup(keyboardHelper.getMainMenuKeyboard(lang));
 
             sender.execute(message);
 
@@ -82,15 +89,16 @@ public class StateMessageHandler {
             log.error("Failed to add source for user {}", user.getId(), e);
             stateManager.clearState(user.getId());
 
-            sendError(chatId, "Failed to add source. Please check the URL and try again.", sender);
+            String errorText = messageService.get("state.error.source", lang);
+            sendError(chatId, errorText, sender, lang);
         }
     }
 
-    private void sendError(Long chatId, String errorText, AbsSender sender) {
+    private void sendError(Long chatId, String errorText, AbsSender sender, Language lang) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("❌ " + errorText);
-        message.setReplyMarkup(KeyboardHelper.getMainMenuKeyboard());
+        message.setText(errorText);
+        message.setReplyMarkup(keyboardHelper.getMainMenuKeyboard(lang));
 
         try {
             sender.execute(message);
@@ -98,6 +106,4 @@ public class StateMessageHandler {
             log.error("Failed to send error message", e);
         }
     }
-
-
 }
