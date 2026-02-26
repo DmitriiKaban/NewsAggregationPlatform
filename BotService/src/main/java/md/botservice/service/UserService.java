@@ -2,9 +2,8 @@ package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import md.botservice.dto.SourceDto;
+import md.botservice.dto.*;
 import md.botservice.events.UserInterestEvent;
-import md.botservice.dto.UserProfileResponse;
 import md.botservice.exceptions.UserNotFoundException;
 import md.botservice.models.Source;
 import md.botservice.models.User;
@@ -13,7 +12,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -26,8 +27,11 @@ public class UserService {
     private static final String TOPIC_USER_INTERESTS = "user.interests.updated";
 
     public User findOrRegister(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
-        return repository.findById(telegramUser.getId())
+        User user = repository.findById(telegramUser.getId())
                 .orElseGet(() -> registerUser(telegramUser));
+
+        user.setLastActiveAt(LocalDateTime.now());
+        return repository.save(user);
     }
 
     private User registerUser(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
@@ -36,6 +40,7 @@ public class UserService {
         user.setUsername(telegramUser.getUserName());
         user.setFirstName(telegramUser.getFirstName());
         user.setRegisteredAt(LocalDateTime.now());
+        user.setLastActiveAt(LocalDateTime.now());
         return repository.save(user);
     }
 
@@ -56,7 +61,8 @@ public class UserService {
                 user.getLastName(),
                 user.getInterestsRaw(),
                 sourceDtos,
-                user.isShowOnlySubscribedSources()
+                user.isShowOnlySubscribedSources(),
+                user.getPreferredLanguage()
         );
     }
 
@@ -127,5 +133,13 @@ public class UserService {
         sourceUpdatePublisher.publishSourceUpdate(user);
 
         log.info("✅ User {} {} read-all for source {}", userId, readAll ? "enabled" : "disabled", sourceId);
+    }
+
+    public List<SourceRecommendationProjection> getRecommendationsForUser(Long userId) {
+        return repository.getRecommendationsForUser(userId);
+    }
+
+    public List<DauProjection> getInsights() {
+        return repository.getDailyActiveUsers();
     }
 }

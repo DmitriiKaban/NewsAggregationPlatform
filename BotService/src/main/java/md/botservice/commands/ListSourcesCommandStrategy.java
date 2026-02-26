@@ -1,21 +1,31 @@
 package md.botservice.commands;
 
 import md.botservice.models.Command;
+import md.botservice.models.Language;
 import md.botservice.models.Source;
 import md.botservice.models.TelegramCommands;
+import md.botservice.service.MessageService;
 import md.botservice.utils.FormatUtils;
+import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
-public class ListSourcesCommandStrategy implements CommandStrategy {
+public class ListSourcesCommandStrategy extends AbstractCommandStrategy {
+
+    private final MessageService messageService;
+
+    public ListSourcesCommandStrategy(KeyboardHelper keyboardHelper, MessageService messageService) {
+        super(keyboardHelper);
+        this.messageService = messageService;
+    }
 
     @Override
     public boolean supports(TelegramCommands command) {
@@ -24,26 +34,33 @@ public class ListSourcesCommandStrategy implements CommandStrategy {
 
     @Override
     public void execute(Command command, AbsSender sender) {
-        Set<Source> sources = command.user().getSubscriptions();
-        sources.forEach( s -> s.setUrl(FormatUtils.getSimpleTelegramName(s.getUrl())));
+        Language lang = command.user().getLanguage();
+        Set<Source> sourcesSet = command.user().getSubscriptions();
 
-        if (sources.isEmpty()) {
-            sendMessage(sender, command.chatId(), "📭 You have no sources.\n\nUse the button below to add one:", createAddButtonMarkup());
+        if (sourcesSet.isEmpty()) {
+            String emptyText = messageService.get("sources.empty", lang);
+            sendMessage(sender, command.chatId(), emptyText, createAddButtonMarkup(lang));
             return;
         }
 
-        StringBuilder text = new StringBuilder("📚 *Your Sources:*\n\n");
+        List<Source> sources = new ArrayList<>(sourcesSet);
+        sources.sort(Comparator.comparing(Source::getId));
+
+        StringBuilder text = new StringBuilder(messageService.get("sources.list_title", lang));
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         int index = 0;
         for (Source source : sources) {
-            text.append(String.format("%d. `%s`\n", index + 1, source.getUrl()));
+            String simpleName = FormatUtils.getSimpleTelegramName(source.getUrl());
+            text.append(String.format("%d. `%s`\n", index + 1, simpleName));
 
             List<InlineKeyboardButton> row = new ArrayList<>();
             InlineKeyboardButton btn = new InlineKeyboardButton();
-            btn.setText("🗑 Remove #" + (index + 1));
+
+            btn.setText(messageService.get("button.remove_source", lang, index + 1));
             btn.setCallbackData("REMOVE_SOURCE:" + source.getId());
+
             row.add(btn);
             rows.add(row);
             index++;
@@ -51,7 +68,7 @@ public class ListSourcesCommandStrategy implements CommandStrategy {
 
         List<InlineKeyboardButton> addRow = new ArrayList<>();
         InlineKeyboardButton addBtn = new InlineKeyboardButton();
-        addBtn.setText("➕ Add New Source");
+        addBtn.setText(messageService.get("button.add_new_source", lang));
         addBtn.setCallbackData("CMD_ADD_SOURCE");
         addRow.add(addBtn);
         rows.add(addRow);
@@ -61,16 +78,19 @@ public class ListSourcesCommandStrategy implements CommandStrategy {
         sendMessage(sender, command.chatId(), text.toString(), markup);
     }
 
-    private InlineKeyboardMarkup createAddButtonMarkup() {
+    private InlineKeyboardMarkup createAddButtonMarkup(Language lang) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         List<InlineKeyboardButton> row = new ArrayList<>();
+
         InlineKeyboardButton addBtn = new InlineKeyboardButton();
-        addBtn.setText("➕ Add Source");
+        addBtn.setText(messageService.get("button.add_source", lang));
         addBtn.setCallbackData("CMD_ADD_SOURCE");
+
         row.add(addBtn);
         rows.add(row);
         markup.setKeyboard(rows);
+
         return markup;
     }
 }

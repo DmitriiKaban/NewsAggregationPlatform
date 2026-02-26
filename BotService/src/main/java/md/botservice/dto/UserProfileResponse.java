@@ -7,6 +7,7 @@ public record UserProfileResponse(
         String lastName,
         String interests,
         List<SourceDto> sources,
-        boolean strictSourceFiltering
+        boolean strictSourceFiltering,
+        String language
 ) {
 }

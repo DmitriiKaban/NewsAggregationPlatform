@@ -1,12 +1,22 @@
 package md.botservice.commands;
 
 import md.botservice.models.Command;
+import md.botservice.models.Language;
 import md.botservice.models.TelegramCommands;
+import md.botservice.service.MessageService;
+import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 
 @Component
-public class HelpCommandStrategy implements CommandStrategy {
+public class HelpCommandStrategy extends AbstractCommandStrategy {
+
+    private final MessageService messageService;
+
+    public HelpCommandStrategy(KeyboardHelper keyboardHelper, MessageService messageService) {
+        super(keyboardHelper);
+        this.messageService = messageService;
+    }
 
     @Override
     public boolean supports(TelegramCommands command) {
@@ -15,42 +25,8 @@ public class HelpCommandStrategy implements CommandStrategy {
 
     @Override
     public void execute(Command command, AbsSender sender) {
-        String helpText = """
-                ✨ *Welcome to NewsBot!* ✨
-                
-                I am your personal AI news curator. I filter out the noise and deliver only what you care about.
-                
-                *🎨 Quick Access:*
-                • Click the *☰ Menu Button* (next to text input) to open the Web App
-                • Or use the keyboard buttons below for quick actions
-                
-                *📌 Keyboard Buttons:*
-                • 📚 *My Sources* - View and manage your news sources
-                • 🎯 *My Interests* - Update your interests
-                • ❓ *Help* - Show this menu
-                
-                *⚡ Text Commands:*
-                /start - Begin your journey
-                /help - Show this menu
-                
-                *🎯 Manage Interests:*
-                /myinterests `[topics]`
-                Tell me what you love! I will hunt for news matching these keywords.
-                
-                *📚 Manage Sources:*
-                /addsource `[link]` - Subscribe to a Telegram channel or RSS feed
-                /removesource `[link]` - Unsubscribe from a source
-                /sources - See your active subscriptions
-                
-                ━━━━━━━━━━━━━━━━
-                *💡 Examples:*
-                `/myinterests Crypto, SpaceX, Java 21`
-                `/addsource https://t.me/jolybells`
-                
-                *🎨 Pro Tip:*
-                Use the Web App (☰ Menu Button) for the best experience with modern UI and real-time updates!
-                """;
-
-        sendWithMainMenu(sender, command.chatId(), helpText);
+        Language lang = command.user().getLanguage();
+        String helpText = messageService.get("help.full_text", lang);
+        sendWithMainMenu(sender, command.chatId(), helpText, lang);
     }
 }
