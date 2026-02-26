@@ -19,7 +19,17 @@ CREATE TABLE IF NOT EXISTS users (
     interests_raw TEXT,
     interests_vector vector(1024),
     show_only_subscribed_sources BOOLEAN NOT NULL DEFAULT FALSE,
-    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+
+-- 2. Create a table to track exactly which articles users actually read
+CREATE TABLE IF NOT EXISTS article_clicks (
+                                              id BIGSERIAL PRIMARY KEY,
+                                              user_id BIGINT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+    article_id BIGINT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
 -- Join Table for Subscriptions

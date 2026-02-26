@@ -30,7 +30,7 @@ TOPIC_NOTIFICATIONS = "news.notification"
 app = FastAPI()
 
 if HF_TOKEN: login(token=HF_TOKEN)
-print("🧠 Loading E5-Large Model...")
+print("Loading Model...")
 model = SentenceTransformer('intfloat/multilingual-e5-large', token=HF_TOKEN)
 
 producer = KafkaProducer(
@@ -115,7 +115,7 @@ def process_news_stream():
                     producer.send(TOPIC_NOTIFICATIONS, value={"userId": user_id, "title": title, "url": link, "score": similarity, "reason": "normal_ai"})
 
         except Exception as e:
-            print(f"❌ Error processing news: {e}")
+            print(f"Error processing news: {e}")
         finally:
             if conn: conn.close()
 
@@ -146,7 +146,7 @@ def listen_for_user_updates():
                 }},
                 upsert=True
             )
-            print(f"✅ Updated User {user_id}: {interests_text}")
+            print(f"Updated User {user_id}: {interests_text}")
 
         except Exception as e:
             print(f"Error updating user interests: {e}")
