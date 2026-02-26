@@ -1,185 +1,123 @@
-# 📰 NewsBot - AI-Powered Telegram News Aggregator
+# 📰 NewsBot: AI-Powered News Platform
 
-NewsBot is a microservices-based system that delivers personalized news feeds to users via Telegram. It scrapes news from various sources, uses AI to understand the content and user preferences (via vector embeddings), and delivers highly relevant updates in real-time.
+An intelligent Telegram bot and Mini App platform that acts as a personal news curator. By leveraging Natural Language Processing (NLP) and vector databases, NewsBot filters through the noise of Telegram channels and RSS feeds to deliver only the articles that match a user's specific interests.
 
-## 🚀 Key Features
+## ✨ Key Features
 
-* ** automated Scraping**: Python-based scraper fetches RSS feeds and raw HTML news.
-* **AI-Driven Personalization**: Uses HuggingFace Transformer models (`all-MiniLM-L6-v2`) to vectorize articles and user interests.
-* **Vector Search**: Matches news to users based on semantic similarity (Cosine Similarity), not just keyword matching.
-* **Event-Driven Architecture**: Fully decoupled services communicating via **Apache Kafka**.
-* **Telegram Integration**: Interactive bot for user registration and preference management.
+* **🧠 AI Semantic Matching:** Uses Hugging Face Sentence Transformers to convert user interests and news articles into high-dimensional vectors, matching them using cosine similarity.
+* **📱 Telegram Mini App Integration:** Features a modern, responsive React-based Web App accessible directly inside Telegram for managing sources, interests, and viewing analytics.
+* **🌍 Multilingual Support:** Fully localized in English, Romanian, and Russian.
+* **📰 Custom Source Management:** Users can subscribe to specific Telegram channels or RSS feeds, with options to apply "Strict Filters" (only show subscribed sources).
+* **📊 Smart Recommendations:** Analyzes user interest vectors to recommend new sources based on similar peer profiles (Cosine Distance < 0.25).
+* **📈 Insights Dashboard:** Tracks Daily Active Users (DAU) and article read metrics.
 
-## 🛠️ Tech Stack
+## 🏗️ Architecture & Tech Stack
 
-| Component | Technology | Description |
-| --- | --- | --- |
-| **Core Service** | Java 21, Spring Boot 3 | Orchestrator, User Management, Telegram Bot integration. |
-| **AI Service** | Python, FastAPI, PyTorch | Vectorization, Semantic Matching, ML Model serving. |
-| **Scraper** | Python, BeautifulSoup | Fetches raw news data. |
-| **Message Broker** | Apache Kafka + Zookeeper | Handles asynchronous data flow between services. |
-| **Databases** | PostgreSQL | Relational data (User profiles, state). |
-|  | MongoDB | Unstructured data (News articles, Vector embeddings). |
-| **Infrastructure** | Docker Compose | Local orchestration of databases and brokers. |
+The platform is built using a microservices-inspired architecture, separating the Telegram interface from the heavy AI processing.
 
----
+* **Bot Service (Backend):** Java 21, Spring Boot 3, Telegram Bot API
+* **AI Engine:** Python, FastAPI, Hugging Face (`sentence-transformers`)
+* **Database:** PostgreSQL with the `pgvector` extension
+* **Message Broker:** Apache Kafka (for asynchronous news stream processing)
+* **Frontend (Mini App):** React.js
 
-## 📂 Project Structure
+## ⚙️ Prerequisites
 
-```text
-/newsbot-system
-├── /common                # Shared configuration
-│   ├── docker-compose.yml # Infrastructure (Kafka, DBs)
-│   └── .env               # Environment variables (Secrets)
-├── /newsbot-core          # Spring Boot Application
-│   ├── src/main/java...   # Bot Logic, Command Strategies
-│   └── pom.xml
-├── /newsbot-ai            # Python AI Service
-│   ├── ai_service_main.py # FastAPI app & Kafka Consumers
-│   └── requirements.txt
-└── /newsbot-scraper       # Python Scraper Service
-    ├── scraper_main.py    # RSS fetching logic
-    └── requirements.txt
+To run this project locally, you will need:
+* [Docker Desktop](https://www.docker.com/products/docker-desktop) (for PostgreSQL + pgvector and Kafka)
+* [Java 21+](https://adoptium.net/)
+* [Python 3.10+](https://www.python.org/downloads/)
+* A Telegram Bot Token (obtained from [@BotFather](https://t.me/botfather))
 
-```
+## 🚀 Local Setup & Installation
 
----
-
-## ⚡ Getting Started (Local Development)
-
-This project runs in a **Hybrid Mode** for development: Infrastructure runs in Docker, while Service applications run locally on your machine for easy debugging.
-
-### 1. Prerequisites
-
-* Docker & Docker Compose
-* Java 21 JDK & Maven
-* Python 3.9+
-
-### 2. Configuration (`.env`)
-
-Create a `.env` file in the `common/` folder. **Do not commit this file.**
-
-```ini
-# Infrastructure Credentials
-POSTGRES_DB=db
-POSTGRES_USER=user
-POSTGRES_PASSWORD=password
-
-MONGO_INITDB_ROOT_USERNAME=user
-MONGO_INITDB_ROOT_PASSWORD=password
-
-# Telegram Bot (Get from @BotFather)
-TG_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-TG_BOT_USER=user
-TG_BOT_PASSWORD=password
-
-# Kafka
-KAFKA_BROKER=localhost:9092
-
-```
-
-### 3. Start Infrastructure
-
-Run the databases and message broker using Docker.
+### 1. Database & Infrastructure
+Start the required infrastructure using Docker Compose.
 
 ```bash
-cd common
 docker-compose up -d
 
 ```
 
-* **Postgres**: `localhost:5433` (Mapped to avoid conflict with local DBs)
-* **MongoDB**: `localhost:27017`
-* **Kafka**: `localhost:9092`
-* **Kafka UI**: `http://localhost:8080` (Use this to view topics/messages)
+### 2. Configure Environment Variables
 
----
+Create an `application.properties` (or `.env`) file in your Spring Boot `src/main/resources` directory:
 
-## 🏃 Running the Services
-
-### A. Core Service (Spring Boot)
-
-1. Open `/newsbot-core` in IntelliJ.
-2. Ensure Maven dependencies are loaded.
-3. **Run Configuration**: If `.env` is not loading automatically, add this VM Option:
-```text
--Ddotenv.directory=../common
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/newsbot
+spring.datasource.username=your_db_user
+spring.datasource.password=your_db_password
+telegram.bot.username=YourBotName
+telegram.bot.token=YOUR_TELEGRAM_BOT_TOKEN
+spring.kafka.bootstrap-servers=localhost:9092
 
 ```
 
+### 3. Start the AI Engine (Python)
 
-4. Run `NewsBotApplication`.
-5. *Verification*: Send `/start` to your Telegram Bot.
+Navigate to the AI service directory, install dependencies, and run the FastAPI server:
 
-### B. AI Service (Python)
-
-1. Navigate to `/newsbot-ai`.
-2. Create and activate a virtual environment:
 ```bash
-python -m venv .venv
-# Windows:
-.\.venv\Scripts\activate
-# Mac/Linux:
-source .venv/bin/activate
-
-```
-
-
-3. Install dependencies:
-```bash
+cd aiservice
 pip install -r requirements.txt
+uvicorn ai_service_main:app --reload --port 8000 
 
 ```
 
+### 4. Start the Spring Boot Bot Service
 
-*(Note: If on Windows and facing `OSError: [WinError 1114]`, install the CPU version of PyTorch via pip).*
-4. Run the service:
+Run the Spring Boot application via your IDE or using Maven/Gradle:
+
 ```bash
-uvicorn ai_service_main:app --reload --port 8000
+./mvnw spring-boot:run
 
 ```
 
+### 5. Start Scraper (Python)
 
+Navigate to the scraper directory, install dependencies, and run script:
 
-### C. Scraper Service (Python)
-
-1. Navigate to `/newsbot-scraper`.
-2. Setup venv and install requirements (similar to AI service).
-3. Run the scraper manually to test:
 ```bash
+cd scraperservice
+pip install -r requirements.txt
 python scraper_main.py
 
 ```
+## 💬 Bot Commands
 
+* `/start` - Initialize the bot and select your preferred language.
+* `/help` - View the help menu and quick actions.
+* `/myinterests [topics]` - Update your interests (e.g., `/myinterests AI, Space, F1`).
+* `/addsource [link]` - Subscribe to a new Telegram channel.
+* `/removesource [link]` - Unsubscribe from a source.
+* `/sources` - View your active subscriptions.
 
+## 📂 Project Structure
+
+```text
+NewsAggregatorPlatform/
+├── BotService/                 # Spring Boot Java Application
+│   ├── src/main/java/.../commands/    # Telegram Command Strategies
+│   ├── src/main/java/.../models/      # JPA Entities
+│   ├── src/main/java/.../service/     # Core Business Logic & Kafka Producers
+│   └── src/main/resources/            # i18n Localization & schema.sql
+├── AIService/                  # Python AI Engine
+│   ├── ai_service_main.py             # FastAPI & Kafka Consumers
+│   └── requirements.txt               # Python Dependencies
+├── ScraperService/             # Python Scraper
+│   ├── scraper_main.py                # Scraper
+│   └── requirements.txt               # Python Dependencies
+└── newsbot-ui/                 # React Mini App (Web App)
+└── common/                     # Infrastructure 
+│   ├── docker-compose.py            
+│   ├── .env             
+
+```
+
+## 🎓 Academic Context
+
+This project was developed as a university thesis, demonstrating the practical application of Vector Databases (`pgvector`), asynchronous event-driven architecture (Kafka), and seamless integration between traditional backend frameworks (Spring Boot) and modern AI tools (Python/Hugging Face).
 
 ---
 
-## 🤖 Bot Commands
-
-| Command               | Description                                               |
-|-----------------------|-----------------------------------------------------------|
-| `/start`              | Registers you with the system and shows the welcome menu. |
-| `/myinterests [text]` | Updates your preference profile. <br>                     |
-
-<br> *Example:* `/myinterests AI, Nvidia, Formula 1` |
-| `/help` | Shows available commands and usage examples. |
-
----
-
-## 🧠 Data Flow
-
-1. **User** sends `/myinterests Crypto` to **Core Service**.
-2. **Core Service** saves text to Postgres and produces event `user.interests.updated` to Kafka.
-3. **AI Service** consumes event, vectorizes "Crypto", and upserts to MongoDB `users` collection.
-4. **Scraper** fetches article "Bitcoin hits $100k", pushes to `news.raw`.
-5. **AI Service** consumes `news.raw`, vectorizes article, and searches MongoDB for matching users (Cosine Sim > 0.35).
-6. **AI Service** produces `news.notification` event.
-7. **Core Service** consumes notification and sends Telegram message to User.
-
-## 🔮 Future Roadmap
-
-* [ ] **Containerization**: Dockerfiles for all 3 services.
-* [ ] **Orchestration**: Kubernetes (K8s) deployment manifests.
-* [ ] **CI/CD**: Jenkins pipeline for automated testing and building.
-* [ ] **Cloud**: Terraform scripts for AWS deployment (EKS, RDS).
+*Developed by Cravcenco Dmitrii and Bujilov Dmitrii
