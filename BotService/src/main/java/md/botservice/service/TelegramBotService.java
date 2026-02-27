@@ -102,13 +102,15 @@ public class TelegramBotService extends TelegramLongPollingBot {
     }
 
     private String mapButtonTextToCommand(String text) {
-        return switch (text) {
-            case "📚 My Sources" -> "/sources";
-            case "🎯 My Interests" -> "/myinterests";
-            case "❓ Help" -> "/help";
-            case "🎨 Open Web App" -> "/webapp";
-            default -> text;
-        };
+        if (text == null) return "";
+
+        if (text.startsWith("📚")) return "/sources";
+        if (text.startsWith("🎯")) return "/myinterests";
+        if (text.startsWith("❓")) return "/help";
+        if (text.startsWith("🎨")) return "/webapp";
+        if (text.startsWith("⚙️")) return "/settings";
+
+        return text;
     }
 
     private void sendErrorMessage(Long chatId) {
