@@ -5,3 +5,4 @@ public interface SourceRecommendationProjection {
     String getUrl();
     Integer getPeerCount();
 }
+

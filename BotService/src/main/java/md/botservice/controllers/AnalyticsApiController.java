@@ -1,10 +1,7 @@
 package md.botservice.controllers;
 
 import lombok.RequiredArgsConstructor;
-import md.botservice.dto.DauProjection;
-import md.botservice.dto.InsightsDto;
-import md.botservice.dto.SourceRecommendationProjection;
-import md.botservice.dto.TopSourceProjection;
+import md.botservice.dto.*;
 import md.botservice.service.SourceService;
 import md.botservice.service.UserActivityService;
 import md.botservice.service.UserService;
@@ -24,9 +21,12 @@ public class AnalyticsApiController {
     private final UserActivityService userActivityService;
 
     @GetMapping("/users/{userId}/recommendations")
-    public ResponseEntity<List<SourceRecommendationProjection>> getRecommendations(@PathVariable Long userId) {
+    public ResponseEntity<List<SourceRecommendationDto>> getRecommendations(@PathVariable Long userId) {
         List<SourceRecommendationProjection> recommendations = userService.getRecommendationsForUser(userId);
-        return ResponseEntity.ok(recommendations);
+        return ResponseEntity.ok(recommendations.stream()
+                .map(SourceRecommendationDto::from)
+                .toList()
+        );
     }
 
     @GetMapping("/insights")
