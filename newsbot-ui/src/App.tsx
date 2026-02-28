@@ -110,7 +110,7 @@ export default function App() {
     const [displayName, setDisplayName] = useState('there');
     const [languageLoaded, setLanguageLoaded] = useState(false);
 
-    const apiBaseUrl = "https://5d71-212-28-65-233.ngrok-free.app/";
+    const apiBaseUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev";
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
 
@@ -140,9 +140,6 @@ export default function App() {
                     setDisplayName(userData.first_name || 'there');
                     return;
                 }
-                if (userData?.id) {
-                    console.log('log')
-                }
                 if (tg.initData && tg.initData.length > 0) {
                     const params = new URLSearchParams(tg.initData);
                     const userJson = params.get('user');
@@ -162,7 +159,7 @@ export default function App() {
                 setLoading(false);
             } catch {
                 setUser(null);
-                setError("Failed to initialize");
+                setError("Failed to initialize Bot");
                 setLoading(false);
             }
         } else {
@@ -194,15 +191,15 @@ export default function App() {
             })),
         ])
             .then(([profileData, recommendationsData, insightsData]) => {
-                console.log("🌍 Full profile data:", profileData);
-                console.log("🌍 Language field:", profileData.language);
-                console.log("🌍 Language valid:", ['en', 'ro', 'ru'].includes(profileData.language));
+                console.log("Full profile data:", profileData);
+                console.log("Language field:", profileData.language);
+                console.log("Language valid:", ['en', 'ro', 'ru'].includes(profileData.language));
 
                 const backendLang = profileData.language?.toLowerCase();
 
                 if (backendLang && ['en', 'ro', 'ru'].includes(backendLang)) {
                     setLang(backendLang as Language);
-                    console.log("✅ Language set to:", backendLang);
+                    console.log("Language set to:", backendLang);
                 }
                 setLanguageLoaded(true);
 
