@@ -41,14 +41,14 @@ public class CallbackQueryHandler {
             }
 
             // UPDATE INTERESTS
-            if ("UPDATE_INTERESTS".equals(data)) {
+            if ("update_interests".equals(data)) {
                 handleUpdateInterests(user, chatId, sender);
                 answerCallback(callbackQuery, sender);
                 return;
             }
 
             // KEEP INTERESTS
-            if ("KEEP_INTERESTS".equals(data)) {
+            if ("keep_interests".equals(data)) {
                 handleKeepInterests(user, chatId, sender);
                 answerCallback(callbackQuery, sender);
                 return;
@@ -74,7 +74,6 @@ public class CallbackQueryHandler {
             if ("TOGGLE_STRICT_MODE".equals(data)) {
                 handleToggleStrictMode(user, chatId, messageId, sender);
                 answerCallback(callbackQuery, sender);
-                return;
             }
 
         } catch (Exception e) {
@@ -148,7 +147,9 @@ public class CallbackQueryHandler {
         Language lang = user.getLanguage();
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("✅ " + messageService.get("interests.current", lang));
+
+        message.setText(messageService.get("interests.kept", lang));
+        message.setParseMode("HTML");
 
         try {
             sender.execute(message);
@@ -184,6 +185,7 @@ public class CallbackQueryHandler {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
             message.setText(messageService.get("sources.removed", lang));
+            message.setParseMode("HTML");
 
             sender.execute(message);
         } catch (Exception e) {
@@ -194,9 +196,6 @@ public class CallbackQueryHandler {
     private void handleToggleStrictMode(User user, long chatId, int messageId, AbsSender sender) {
         boolean newState = !user.isShowOnlySubscribedSources();
         sourceService.setShowOnlySubscribedSources(user, newState);
-
-        // Refresh settings message
-        // (You can implement this to update the settings menu)
     }
 
     private void answerCallback(CallbackQuery callbackQuery, AbsSender sender) {
