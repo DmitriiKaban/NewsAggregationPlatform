@@ -74,7 +74,6 @@ public class UserService {
         try {
             UserInterestEvent event = new UserInterestEvent(userId, rawInterests);
             kafkaTemplate.send(TOPIC_USER_INTERESTS, event);
-
             log.info("✅ Sent interest update for user {} to Kafka: {}", userId, rawInterests);
         } catch (Exception e) {
             log.error("❌ Failed to send interest update to Kafka", e);

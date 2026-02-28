@@ -2,6 +2,7 @@ package md.botservice.controllers;
 
 import jakarta.ws.rs.core.MediaType;
 import md.botservice.dto.DauProjection;
+import md.botservice.dto.SourceRecommendationDto;
 import md.botservice.dto.SourceRecommendationProjection;
 import md.botservice.dto.TopSourceProjection;
 import md.botservice.service.SourceService;
@@ -46,13 +47,15 @@ class AnalyticsApiControllerTest {
 
         // Act & assert
         mockMvc.perform(get("/api/analytics/users/{userId}/recommendations", userId)
-                        .content(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()").value(2))
-                .andExpect(jsonPath("$.name").value("Tech News"))
-                .andExpect(jsonPath("$.url").value("https://t.me/tech"))
-                .andExpect(jsonPath("$.peerCount").value(15))
-                .andExpect(jsonPath("$.name").value("SpaceX Updates"));
+                .andExpect(jsonPath("$[0].name").value("Tech News"))
+                .andExpect(jsonPath("$[0].url").value("https://t.me/tech"))
+                .andExpect(jsonPath("$[0].peerCount").value(15))
+                .andExpect(jsonPath("$[1].name").value("SpaceX Updates"))
+                .andExpect(jsonPath("$[1].url").value("https://t.me/spacex"))
+                .andExpect(jsonPath("$[1].peerCount").value(8));
     }
 
     @Test
@@ -62,11 +65,13 @@ class AnalyticsApiControllerTest {
         TopSourceProjection source1 = mockTopSource("durov", 123);
         TopSourceProjection source2 = mockTopSource("point", 124);
 
-        DauProjection dau1 = mockDau(LocalDate.now().minusDays(1), 2);
-        DauProjection dau2 = mockDau(LocalDate.now(), 3);
+        String dau1Date = LocalDate.now().minusDays(1).toString();
+        String dau2Date = LocalDate.now().toString();
+        DauProjection dau1 = mockDau(dau1Date, 2);
+        DauProjection dau2 = mockDau(dau2Date, 3);
 
         when(sourceService.getTopSources()).thenReturn(List.of(source1, source2));
-        when(userService.getInsights()).thenReturn(List.of(dau1, dau2));
+        when(userActivityService.getDailyActiveUsers()).thenReturn(List.of(dau1, dau2));
 
         // Act & assert
         mockMvc.perform(get("/api/analytics/insights")
@@ -75,12 +80,21 @@ class AnalyticsApiControllerTest {
                 .andExpect(jsonPath("$.topSources.size()").value(2))
                 .andExpect(jsonPath("$.dauStats.size()").value(2))
 
-                .andExpect(jsonPath("$.topSources.name").value("durov"))
-                .andExpect(jsonPath("$.topSources.subscriberCount").value(120))
-                // Assert dauStats mapping
-                .andExpect(jsonPath("$.dauStats.size()").value(2))
-                .andExpect(jsonPath("$.dauStats.count").value(2))
-                .andExpect(jsonPath("$.dauStats.count").value(3));
+                // Check the FIRST item in the topSources list (index 0)
+                .andExpect(jsonPath("$.topSources[0].name").value("durov"))
+                .andExpect(jsonPath("$.topSources[0].subscriberCount").value(123))
+
+                // Check the SECOND item in the topSources list (index 1)
+                .andExpect(jsonPath("$.topSources[1].name").value("point"))
+                .andExpect(jsonPath("$.topSources[1].subscriberCount").value(124))
+
+                // Check the FIRST item in the dauStats list (index 0)
+                .andExpect(jsonPath("$.dauStats[0].count").value(2))
+                .andExpect(jsonPath("$.dauStats[0].date").value(dau1Date))
+
+                // Check the SECOND item in the dauStats list (index 1)
+                .andExpect(jsonPath("$.dauStats[1].count").value(3))
+                .andExpect(jsonPath("$.dauStats[1].date").value(dau2Date));
     }
 
     private SourceRecommendationProjection mockRecommendation(String name, String url, Integer peerCount) {
@@ -98,9 +112,9 @@ class AnalyticsApiControllerTest {
         return mock;
     }
 
-    private DauProjection mockDau(LocalDate date, Integer count) {
+    private DauProjection mockDau(String date, Integer count) {
         DauProjection mock = mock(DauProjection.class);
-        when(mock.getDate()).thenReturn(date.toString());
+        when(mock.getDate()).thenReturn(date);
         when(mock.getCount()).thenReturn(count);
         return mock;
     }
