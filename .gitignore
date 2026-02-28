@@ -25,6 +25,16 @@ yarn-error.log*
 # package-lock.json
 # yarn.lock
 
+.env
+/common/.env
+
+BotService/.idea/
+BotService/target
+newsbot-ui/dist/
+newsbot-ui/node_modules/
+ScraperService/newsbot_session.session
+
+
 # Java/Spring specific ignores
 /target/       # Maven build output directory
 /out/          # Common output directory

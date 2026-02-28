@@ -3,6 +3,7 @@ package md.botservice.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.models.Language;
+import md.botservice.models.ReactionType;
 import md.botservice.models.User;
 import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,20 @@ public class CallbackQueryHandler {
         User user = userService.findOrRegister(telegramUser);
 
         try {
-            // LANGUAGE SELECTION
+            if (data.startsWith("LIKE_POST:")) {
+                String postId = data.substring("LIKE_POST:".length());
+                userService.handlePostReaction(user.getId(), postId, ReactionType.LIKE);
+                answerCallbackWithToast(callbackQuery, sender, "Мы учтем, что вам нравятся такие новости!");
+                return;
+            }
+
+            if (data.startsWith("DISLIKE_POST:")) {
+                String postId = data.substring("DISLIKE_POST:".length());
+                userService.handlePostReaction(user.getId(), postId, ReactionType.DISLIKE);
+                answerCallbackWithToast(callbackQuery, sender, "Подобных новостей будет меньше.");
+                return;
+            }
+
             if (data.startsWith("LANG_")) {
                 handleLanguageSelection(data, user, chatId, messageId, sender);
                 answerCallback(callbackQuery, sender);
@@ -74,6 +88,7 @@ public class CallbackQueryHandler {
             if ("TOGGLE_STRICT_MODE".equals(data)) {
                 handleToggleStrictMode(user, chatId, messageId, sender);
                 answerCallback(callbackQuery, sender);
+                return;
             }
 
         } catch (Exception e) {
@@ -147,9 +162,7 @@ public class CallbackQueryHandler {
         Language lang = user.getLanguage();
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-
-        message.setText(messageService.get("interests.kept", lang));
-        message.setParseMode("HTML");
+        message.setText("✅ " + messageService.get("interests.current", lang));
 
         try {
             sender.execute(message);
@@ -185,7 +198,6 @@ public class CallbackQueryHandler {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
             message.setText(messageService.get("sources.removed", lang));
-            message.setParseMode("HTML");
 
             sender.execute(message);
         } catch (Exception e) {
@@ -196,6 +208,9 @@ public class CallbackQueryHandler {
     private void handleToggleStrictMode(User user, long chatId, int messageId, AbsSender sender) {
         boolean newState = !user.isShowOnlySubscribedSources();
         sourceService.setShowOnlySubscribedSources(user, newState);
+
+        // Refresh settings message
+        // (You can implement this to update the settings menu)
     }
 
     private void answerCallback(CallbackQuery callbackQuery, AbsSender sender) {
@@ -208,4 +223,18 @@ public class CallbackQueryHandler {
             log.error("Error answering callback", e);
         }
     }
+
+    private void answerCallbackWithToast(CallbackQuery callbackQuery, AbsSender sender, String text) {
+        AnswerCallbackQuery answer = new AnswerCallbackQuery();
+        answer.setCallbackQueryId(callbackQuery.getId());
+        answer.setText(text);
+        answer.setShowAlert(false);
+
+        try {
+            sender.execute(answer);
+        } catch (TelegramApiException e) {
+            log.error("Error answering callback with toast", e);
+        }
+    }
+
 }

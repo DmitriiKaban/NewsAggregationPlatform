@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import md.botservice.models.Language;
 import md.botservice.service.MessageService;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
@@ -36,4 +38,28 @@ public class KeyboardHelper {
 
         return keyboardMarkup;
     }
+
+    public InlineKeyboardMarkup getPostReactionKeyboard(String postId) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        List<InlineKeyboardButton> reactionRow = new ArrayList<>();
+
+        InlineKeyboardButton likeBtn = new InlineKeyboardButton();
+        likeBtn.setText("👍");
+        likeBtn.setCallbackData("LIKE_POST:" + postId);
+
+        InlineKeyboardButton dislikeBtn = new InlineKeyboardButton();
+        dislikeBtn.setText("👎");
+        dislikeBtn.setCallbackData("DISLIKE_POST:" + postId);
+
+        reactionRow.add(likeBtn);
+        reactionRow.add(dislikeBtn);
+
+        rows.add(reactionRow);
+        markup.setKeyboard(rows);
+
+        return markup;
+    }
+
 }

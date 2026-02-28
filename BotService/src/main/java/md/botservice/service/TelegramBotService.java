@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Slf4j
@@ -49,7 +50,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         try {
-            // Handle inline keyboard button clicks
             if (update.hasCallbackQuery()) {
                 log.info("Received callback query");
                 callbackQueryHandler.handleCallbackQuery(update.getCallbackQuery(), this);
@@ -59,14 +59,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 return;
             }
 
-            // Handle Web App data
             if (update.hasMessage() && update.getMessage().getWebAppData() != null) {
                 log.info("Received web app data from chat {}", update.getMessage().getChatId());
                 webAppDataHandler.handleWebAppData(update, this);
                 return;
             }
 
-            // Handle regular text messages
             if (!update.hasMessage() || !update.getMessage().hasText()) {
                 return;
             }
@@ -78,14 +76,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
             User user = userService.findOrRegister(telegramUser);
             activityService.recordActivity(user.getId());
 
-            // Check if user is in a state awaiting input
             if (stateManager.isAwaitingInput(user.getId())) {
                 log.info("User {} is awaiting input, current state: {}", user.getId(), stateManager.getState(user.getId()));
                 stateMessageHandler.handleStateMessage(user, text, chatId, this);
                 return;
             }
 
-            // Handle ReplyKeyboard
             text = mapButtonTextToCommand(text);
 
             Command command = Command.of(user, chatId, text);
@@ -116,7 +112,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private void sendErrorMessage(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("⚠️ Sorry, I couldn't understand that command. Try /help");
+        message.setText("Sorry, I couldn't understand that command. Try /help");
         try {
             execute(message);
         } catch (TelegramApiException e) {
@@ -124,7 +120,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         }
     }
 
-    public void sendNewsAlert(Long chatId, String title, String url) {
+    public void sendNewsAlert(Long chatId, String title, String url, InlineKeyboardMarkup reactionKeyboard) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setParseMode("HTML");
@@ -132,6 +128,10 @@ public class TelegramBotService extends TelegramLongPollingBot {
         String cleanTitle = escapeHtml(title);
         String text = cleanTitle + "\n\n<a href=\"" + url + "\">Read More</a>";
         message.setText(text);
+
+        if (reactionKeyboard != null) {
+            message.setReplyMarkup(reactionKeyboard);
+        }
 
         try {
             execute(message);
