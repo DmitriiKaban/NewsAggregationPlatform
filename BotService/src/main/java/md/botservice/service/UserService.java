@@ -1,10 +1,13 @@
 package md.botservice.service;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.dto.*;
 import md.botservice.events.UserInterestEvent;
+import md.botservice.events.UserReactionEvent;
 import md.botservice.exceptions.UserNotFoundException;
+import md.botservice.models.ReactionType;
 import md.botservice.models.Source;
 import md.botservice.models.User;
 import md.botservice.repository.UserRepository;
@@ -12,9 +15,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -22,9 +23,10 @@ import java.util.Map;
 public class UserService {
 
     private final UserRepository repository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<@NonNull String, @NonNull Object> kafkaTemplate;
     private final SourceUpdatePublisher sourceUpdatePublisher;
     private static final String TOPIC_USER_INTERESTS = "user.interests.updated";
+    private static final String TOPIC_USER_REACTIONS = "user.post.reactions";
 
     public User findOrRegister(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
         User user = repository.findById(telegramUser.getId())
@@ -75,9 +77,9 @@ public class UserService {
             UserInterestEvent event = new UserInterestEvent(userId, rawInterests);
             kafkaTemplate.send(TOPIC_USER_INTERESTS, event);
 
-            log.info("✅ Sent interest update for user {} to Kafka: {}", userId, rawInterests);
+            log.info("Sent interest update for user {} to Kafka: {}", userId, rawInterests);
         } catch (Exception e) {
-            log.error("❌ Failed to send interest update to Kafka", e);
+            log.error("Failed to send interest update to Kafka", e);
         }
     }
 
@@ -95,10 +97,9 @@ public class UserService {
         user.setShowOnlySubscribedSources(enabled);
         user = repository.save(user);
 
-        // Publish to Kafka for AI service
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} set showOnlySubscribedSources to: {}", userId, enabled);
+        log.info("User {} set showOnlySubscribedSources to: {}", userId, enabled);
         return user;
     }
 
@@ -115,7 +116,6 @@ public class UserService {
     public void updateReadAllNewsSource(Long userId, Long sourceId, boolean readAll) {
         User user = findById(userId);
 
-        // Find source in user's subscriptions
         Source source = user.getSubscriptions().stream()
                 .filter(s -> s.getId().equals(sourceId))
                 .findFirst()
@@ -129,10 +129,9 @@ public class UserService {
 
         user = repository.save(user);
 
-        // Publish to Kafka for AI service
         sourceUpdatePublisher.publishSourceUpdate(user);
 
-        log.info("✅ User {} {} read-all for source {}", userId, readAll ? "enabled" : "disabled", sourceId);
+        log.info("User {} {} read-all for source {}", userId, readAll ? "enabled" : "disabled", sourceId);
     }
 
     public List<SourceRecommendationProjection> getRecommendationsForUser(Long userId) {
@@ -142,4 +141,15 @@ public class UserService {
     public List<DauProjection> getInsights() {
         return repository.getDailyActiveUsers();
     }
+
+    public void handlePostReaction(Long userId, String postId, ReactionType reactionType) {
+        try {
+            UserReactionEvent event = new UserReactionEvent(userId, postId, reactionType);
+            kafkaTemplate.send(TOPIC_USER_REACTIONS, event);
+            log.info("User {} reacted {} to post {}. Event sent to Kafka.", userId, reactionType, postId);
+        } catch (Exception e) {
+            log.error("Failed to send user reaction to Kafka", e);
+        }
+    }
+
 }

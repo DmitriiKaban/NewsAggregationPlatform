@@ -46,6 +46,11 @@ public class KafkaAiProcessor {
             }
 
             String textToVectorize = "passage: " + title + " - " + summary;
+
+            if (textToVectorize.length() > 1500) {
+                textToVectorize = textToVectorize.substring(0, 1500);
+            }
+
             float[] newsVector = embeddingService.encode(textToVectorize);
             String vectorStr = Arrays.toString(newsVector);
 
@@ -118,11 +123,16 @@ public class KafkaAiProcessor {
             String interestsText = data.hasNonNull("interests") ? data.get("interests").asText() : null;
 
             if (userId == 0 || interestsText == null) {
-                System.out.println("⚠Skipping - missing userId or interests");
+                System.out.println("Skipping - missing userId or interests");
                 return;
             }
 
             String textForModel = "query: " + interestsText;
+
+            if (textForModel.length() > 1500) {
+                textForModel = textForModel.substring(0, 1500);
+            }
+
             float[] vector = embeddingService.encode(textForModel);
             String vectorStr = Arrays.toString(vector);
 
@@ -131,6 +141,55 @@ public class KafkaAiProcessor {
 
         } catch (Exception e) {
             System.err.println("Error updating vector: " + e.getMessage());
+        }
+    }
+
+    @KafkaListener(topics = "user.reaction", groupId = "ai-reaction-group")
+    public void handleUserReaction(String message) {
+        try {
+            JsonNode event = safeDeserialize(message);
+            if (event == null) return;
+
+            long userId = event.get("userId").asLong();
+            long articleId = event.get("articleId").asLong();
+            String reaction = event.get("reactionType").asText();
+
+            if (!"LIKE".equalsIgnoreCase(reaction)) {
+                return; // todo: do something about dislikes
+            }
+
+            String articleTitle = jdbcTemplate.queryForObject(
+                    "SELECT title FROM articles WHERE id = ?", String.class, articleId
+            );
+
+            if (articleTitle == null) {
+                return;
+            }
+
+            String currentInterests = jdbcTemplate.queryForObject(
+                    "SELECT interests_raw FROM users WHERE id = ?", String.class, userId
+            );
+
+            if (currentInterests == null) {
+                currentInterests = "";
+            }
+
+            String updatedInterests = currentInterests + ". Also interested in: " + articleTitle;
+
+            if (updatedInterests.length() > 1500) {
+                updatedInterests = updatedInterests.substring(updatedInterests.length() - 1500);
+            }
+
+            float[] newVector = embeddingService.encode("query: " + updatedInterests);
+            String vectorStr = Arrays.toString(newVector);
+
+            jdbcTemplate.update(
+                    "UPDATE users SET interests_raw = ?, interests_vector = ?::vector WHERE id = ?",
+                    updatedInterests, vectorStr, userId
+            );
+
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
         }
     }
 
