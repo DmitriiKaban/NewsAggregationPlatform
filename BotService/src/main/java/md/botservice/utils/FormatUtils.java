@@ -50,12 +50,6 @@ public class FormatUtils {
         return clean.isEmpty() ? "" : "@" + clean;
     }
 
-
-    public static String escapeMarkdownV2(String text) {
-        if (text == null) return "";
-        return text.replaceAll("([_*\\[\\]()~`>#+\\-=|{}.!])", "\\\\$1");
-    }
-
     public static String escapeHtml(String text) {
         if (text == null) return "";
         return text.replace("&", "&amp;")

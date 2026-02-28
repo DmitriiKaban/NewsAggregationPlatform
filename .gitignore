@@ -1,0 +1,63 @@
+# IDE/Editor-specific files
+.idea/         # IntelliJ IDEA project files
+.vscode/       # VS Code project files
+*.suo
+*.user
+*.casc
+*.jmp
+*.layout
+*.swp
+.DS_Store      # macOS system files
+Thumbs.db      # Windows system files
+
+# React (Node.js) specific ignores
+/node_modules  # Dependency directory
+/build         # Create React App build output
+/dist          # Common build output directory
+.env.local     # Local environment variables
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Package lock files are generally committed, but can be ignored if needed
+# package-lock.json
+# yarn.lock
+
+# Java/Spring specific ignores
+/target/       # Maven build output directory
+/out/          # Common output directory
+.mtj.tmp/      # Mobile Tools for Java temporary files
+
+# Compiled class files
+*.class        # Compiled Java classes
+
+# Package Files
+*.jar          # Java Archive files
+*.war          # Web Archive files
+*.ear          # Enterprise Archive files
+
+# Log files
+*.log
+hs_err_pid*    # Virtual machine crash logs
+
+# Maven phase files
+pom.xml.tag
+pom.xml.next
+pom.xml.bak
+release.properties
+
+# Eclipse project files
+.project
+.classpath
+.externalToolBuilders
+.settings
+.loadpath
+
+# Gradle files (if used instead of Maven)
+.gradle
+/build/
+
+git-key
+git-key.pub
