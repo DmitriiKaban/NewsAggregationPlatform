@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 public class KafkaAiProcessor {
@@ -56,6 +58,39 @@ public class KafkaAiProcessor {
             String vectorStr = Arrays.toString(newsVector);
 
             String shortenedTitle = title.substring(0, Math.min(title.length(), 50));
+
+            try {
+                List<Map<String, Object>> matches = jdbcTemplate.query(
+                        "SELECT source_name, 1 - (vector <=> ?::vector) AS similarity FROM articles ORDER BY vector <=> ?::vector LIMIT 1",
+                        (rs, rowNum) -> {
+                            Map<String, Object> map = new HashMap<>();
+                            map.put("source_name", rs.getString("source_name"));
+                            map.put("similarity", rs.getDouble("similarity"));
+                            return map;
+                        },
+                        vectorStr, vectorStr
+                );
+
+                if (!matches.isEmpty()) {
+                    double maxSim = (Double) matches.getFirst().get("similarity");
+                    String matchedSource = (String) matches.getFirst().get("source_name");
+
+                    if (maxSim > 0.985) {
+                        System.out.printf("Exact duplicate detected (Sim: %.4f > 0.985), skipping: %s%n", maxSim, shortenedTitle);
+                        return;
+                    } else if (maxSim > 0.90) {
+                        if (!sourceName.equals(matchedSource)) {
+                            System.out.printf("Cross-source duplicate detected (Sim: %.4f > 0.90, matched %s), skipping: %s%n", maxSim, matchedSource, shortenedTitle);
+                            return;
+                        } else {
+                            System.out.printf("Templated article kept (Sim: %.4f, Same Source: %s): %s%n", maxSim, sourceName, shortenedTitle);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Deduplication check failed, proceeding normally: " + e.getMessage());
+            }
+
             try {
                 jdbcTemplate.update("""
                         INSERT INTO articles (title, url, summary, content, source_name, vector)
@@ -63,12 +98,17 @@ public class KafkaAiProcessor {
                         """, title, link, summary, content, sourceName, vectorStr);
                 System.out.println("Saved: " + shortenedTitle);
             } catch (DuplicateKeyException e) {
-                System.out.println("Duplicate: " + shortenedTitle);
+                System.out.println("Duplicate URL: " + shortenedTitle);
+                return;
             }
 
             Long articleDbId;
             try {
                 articleDbId = jdbcTemplate.queryForObject("SELECT id FROM articles WHERE url = ?", Long.class, link);
+                if (articleDbId == null) {
+                    System.out.println("Article ID returned null for url: " + link);
+                    return;
+                }
             } catch (Exception e) {
                 System.out.println("Could not find article ID for url: " + link);
                 return;
@@ -82,7 +122,7 @@ public class KafkaAiProcessor {
                 return;
             }
 
-            final Long finalArticleDbId = articleDbId;
+            final long finalArticleDbId = articleDbId;
 
             String sql = """
                     SELECT
