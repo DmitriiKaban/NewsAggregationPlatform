@@ -25,6 +25,8 @@ public class EmbeddingService {
                 .optEngine("PyTorch")
                 .optTranslatorFactory(new TextEmbeddingTranslatorFactory())
                 .optArgument("normalize", "true")
+                .optArgument("truncation", "true")
+                .optArgument("maxLength", "512")
                 .build();
 
         this.model = criteria.loadModel();

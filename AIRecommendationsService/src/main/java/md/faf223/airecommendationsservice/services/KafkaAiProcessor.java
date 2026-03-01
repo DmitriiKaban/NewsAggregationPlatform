@@ -11,6 +11,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Service
 public class KafkaAiProcessor {
@@ -47,8 +48,8 @@ public class KafkaAiProcessor {
 
             String textToVectorize = "passage: " + title + " - " + summary;
 
-            if (textToVectorize.length() > 1500) {
-                textToVectorize = textToVectorize.substring(0, 1500);
+            if (textToVectorize.length() > 1000) {
+                textToVectorize = textToVectorize.substring(0, 1000);
             }
 
             float[] newsVector = embeddingService.encode(textToVectorize);
@@ -63,6 +64,13 @@ public class KafkaAiProcessor {
                 System.out.println("Saved: " + shortenedTitle);
             } catch (DuplicateKeyException e) {
                 System.out.println("Duplicate: " + shortenedTitle);
+            }
+
+            Long articleDbId;
+            try {
+                articleDbId = jdbcTemplate.queryForObject("SELECT id FROM articles WHERE url = ?", Long.class, link);
+            } catch (Exception e) {
+                System.out.println("Could not find article ID for url: " + link);
                 return;
             }
 
@@ -73,6 +81,8 @@ public class KafkaAiProcessor {
                 System.out.println("Source not found: " + sourceName);
                 return;
             }
+
+            final Long finalArticleDbId = articleDbId;
 
             String sql = """
                     SELECT
@@ -93,15 +103,15 @@ public class KafkaAiProcessor {
                 double similarity = rs.getDouble("similarity");
 
                 if (isReadAll) {
-                    sendNotification(userId, title, link, 1.0, "read_all");
+                    sendNotification(userId, title, link, 1.0, "read_all", finalArticleDbId);
                     System.out.println("[Scenario 1] Read-All: User " + userId);
                 } else if (strictMode) {
                     if (isSubscribed && similarity > 0.82) {
-                        sendNotification(userId, title, link, similarity, "strict_ai");
+                        sendNotification(userId, title, link, similarity, "strict_ai", finalArticleDbId);
                         System.out.printf("[Scenario 2] Strict+AI: User %d (%.4f)%n", userId, similarity);
                     }
                 } else if (similarity > 0.80) {
-                    sendNotification(userId, title, link, similarity, "normal_ai");
+                    sendNotification(userId, title, link, similarity, "normal_ai", finalArticleDbId);
                     System.out.printf("[Scenario 3] Normal AI: User %d (%.4f)%n", userId, similarity);
                 }
                 return null;
@@ -129,8 +139,8 @@ public class KafkaAiProcessor {
 
             String textForModel = "query: " + interestsText;
 
-            if (textForModel.length() > 1500) {
-                textForModel = textForModel.substring(0, 1500);
+            if (textForModel.length() > 1000) {
+                textForModel = textForModel.substring(0, 1000);
             }
 
             float[] vector = embeddingService.encode(textForModel);
@@ -144,26 +154,65 @@ public class KafkaAiProcessor {
         }
     }
 
-    @KafkaListener(topics = "user.reaction", groupId = "ai-reaction-group")
+    @KafkaListener(topics = "user.post.reactions", groupId = "ai-reaction-group")
     public void handleUserReaction(String message) {
         try {
+            System.out.println("handleUserReaction received: " + message);
             JsonNode event = safeDeserialize(message);
             if (event == null) return;
 
-            long userId = event.get("userId").asLong();
-            long articleId = event.get("articleId").asLong();
-            String reaction = event.get("reactionType").asText();
-
-            if (!"LIKE".equalsIgnoreCase(reaction)) {
-                return; // todo: do something about dislikes
+            if (!event.has("userId") || !event.has("postId") || !event.has("reactionType")) {
+                System.out.println("Missing required fields in reaction payload.");
+                return;
             }
 
-            String articleTitle = jdbcTemplate.queryForObject(
-                    "SELECT title FROM articles WHERE id = ?", String.class, articleId
+            long userId = event.get("userId").asLong();
+
+            long articleId;
+            try {
+                articleId = Long.parseLong(event.get("postId").asText());
+            } catch (NumberFormatException e) {
+                System.out.println("Ignoring reaction for old/non-numeric postId: " + event.get("postId").asText());
+                return;
+            }
+
+            String reaction = event.get("reactionType").asText().toUpperCase();
+
+            List<String> titles = jdbcTemplate.query(
+                    "SELECT title FROM articles WHERE id = ?",
+                    (rs, rowNum) -> rs.getString("title"),
+                    articleId
             );
 
-            if (articleTitle == null) {
+            if (titles.isEmpty()) {
+                System.out.println("Article ID not found in database: " + articleId);
                 return;
+            }
+            String articleTitle = titles.getFirst();
+
+            List<String> existingReactions = jdbcTemplate.query(
+                    "SELECT reaction_type FROM user_reactions WHERE user_id = ? AND article_id = ?",
+                    (rs, rowNum) -> rs.getString("reaction_type"),
+                    userId, articleId
+            );
+
+            String existingReaction = existingReactions.isEmpty() ? null : existingReactions.getFirst();
+
+            if (reaction.equals(existingReaction)) {
+                System.out.println("User " + userId + " already reacted " + reaction + " to article " + articleId + ". Ignoring.");
+                return;
+            }
+
+            if (existingReaction == null) {
+                jdbcTemplate.update(
+                        "INSERT INTO user_reactions (user_id, article_id, reaction_type) VALUES (?, ?, ?)",
+                        userId, articleId, reaction
+                );
+            } else {
+                jdbcTemplate.update(
+                        "UPDATE user_reactions SET reaction_type = ?, reacted_at = CURRENT_TIMESTAMP WHERE user_id = ? AND article_id = ?",
+                        reaction, userId, articleId
+                );
             }
 
             String currentInterests = jdbcTemplate.queryForObject(
@@ -174,10 +223,23 @@ public class KafkaAiProcessor {
                 currentInterests = "";
             }
 
-            String updatedInterests = currentInterests + ". Also interested in: " + articleTitle;
+            String likePhrase = ". Also interested in: " + articleTitle;
+            String dislikePhrase = ". Not interested in: " + articleTitle;
 
-            if (updatedInterests.length() > 1500) {
-                updatedInterests = updatedInterests.substring(updatedInterests.length() - 1500);
+            currentInterests = currentInterests.replace(likePhrase, "");
+            currentInterests = currentInterests.replace(dislikePhrase, "");
+
+            String updatedInterests;
+            if ("LIKE".equals(reaction)) {
+                updatedInterests = currentInterests + likePhrase;
+            } else if ("DISLIKE".equals(reaction)) {
+                updatedInterests = currentInterests + dislikePhrase;
+            } else {
+                return;
+            }
+
+            if (updatedInterests.length() > 1000) {
+                updatedInterests = updatedInterests.substring(updatedInterests.length() - 1000);
             }
 
             float[] newVector = embeddingService.encode("query: " + updatedInterests);
@@ -188,12 +250,14 @@ public class KafkaAiProcessor {
                     updatedInterests, vectorStr, userId
             );
 
+            System.out.println("Updated vector for user " + userId + " based on " + reaction + " for: " + articleTitle);
+
         } catch (Exception e) {
-            System.err.println(e.getMessage());
+            System.err.println("Error handling user reaction: " + e.getMessage());
         }
     }
 
-    private void sendNotification(long userId, String title, String url, double score, String reason) {
+    private void sendNotification(long userId, String title, String url, double score, String reason, long articleId) {
         try {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.put("userId", userId);
@@ -201,6 +265,7 @@ public class KafkaAiProcessor {
             payload.put("url", url);
             payload.put("score", score);
             payload.put("reason", reason);
+            payload.put("postId", articleId);
             kafkaTemplate.send("news.notification", objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
             System.err.println("Failed to send notification for user " + userId + ": " + e.getMessage());

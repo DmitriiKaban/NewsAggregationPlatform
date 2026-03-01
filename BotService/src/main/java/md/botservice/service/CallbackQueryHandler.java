@@ -37,14 +37,14 @@ public class CallbackQueryHandler {
             if (data.startsWith("LIKE_POST:")) {
                 String postId = data.substring("LIKE_POST:".length());
                 userService.handlePostReaction(user.getId(), postId, ReactionType.LIKE);
-                answerCallbackWithToast(callbackQuery, sender, "Мы учтем, что вам нравятся такие новости!");
+                answerCallbackWithToast(callbackQuery, sender, messageService.get("reaction.like.toast", user.getLanguage()));
                 return;
             }
 
             if (data.startsWith("DISLIKE_POST:")) {
                 String postId = data.substring("DISLIKE_POST:".length());
                 userService.handlePostReaction(user.getId(), postId, ReactionType.DISLIKE);
-                answerCallbackWithToast(callbackQuery, sender, "Подобных новостей будет меньше.");
+                answerCallbackWithToast(callbackQuery, sender, messageService.get("reaction.dislike.toast", user.getLanguage()));
                 return;
             }
 

@@ -110,7 +110,7 @@ export default function App() {
     const [displayName, setDisplayName] = useState('there');
     const [languageLoaded, setLanguageLoaded] = useState(false);
 
-    const apiBaseUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api";
+    const apiBaseUrl = "https://2141-212-28-65-233.ngrok-free.app/api";
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
 

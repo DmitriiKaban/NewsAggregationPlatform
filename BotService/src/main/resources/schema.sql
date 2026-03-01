@@ -71,7 +71,13 @@ CREATE TABLE IF NOT EXISTS user_activity (
                                UNIQUE(user_id, activity_date)
 );
 
-
+CREATE TABLE IF NOT EXISTS user_reactions (
+                                              user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    article_id BIGINT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    reaction_type VARCHAR(20) NOT NULL CHECK (reaction_type IN ('LIKE', 'DISLIKE')),
+    reacted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, article_id)
+    );
 
 CREATE INDEX IF NOT EXISTS idx_user_activity_date ON user_activity(activity_date);
 CREATE INDEX IF NOT EXISTS idx_user_activity_user_date ON user_activity(user_id, activity_date);

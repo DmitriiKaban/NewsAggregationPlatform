@@ -39,18 +39,18 @@ public class KeyboardHelper {
         return keyboardMarkup;
     }
 
-    public InlineKeyboardMarkup getPostReactionKeyboard(String postId) {
+    public InlineKeyboardMarkup getPostReactionKeyboard(String postId, Language lang) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         List<InlineKeyboardButton> reactionRow = new ArrayList<>();
 
         InlineKeyboardButton likeBtn = new InlineKeyboardButton();
-        likeBtn.setText("👍");
+        likeBtn.setText(messageService.get("button.like", lang));
         likeBtn.setCallbackData("LIKE_POST:" + postId);
 
         InlineKeyboardButton dislikeBtn = new InlineKeyboardButton();
-        dislikeBtn.setText("👎");
+        dislikeBtn.setText(messageService.get("button.dislike", lang));
         dislikeBtn.setCallbackData("DISLIKE_POST:" + postId);
 
         reactionRow.add(likeBtn);

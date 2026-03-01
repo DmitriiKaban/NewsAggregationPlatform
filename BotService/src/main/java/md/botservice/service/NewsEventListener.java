@@ -2,6 +2,7 @@ package md.botservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import md.botservice.models.User;
 import md.botservice.utils.KeyboardHelper;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
@@ -12,11 +13,13 @@ public class NewsEventListener {
 
     private final TelegramBotService botService;
     private final KeyboardHelper keyboardHelper;
+    private final UserService userService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public NewsEventListener(TelegramBotService botService, KeyboardHelper keyboardHelper) {
+    public NewsEventListener(TelegramBotService botService, KeyboardHelper keyboardHelper, UserService userService) {
         this.botService = botService;
         this.keyboardHelper = keyboardHelper;
+        this.userService = userService;
     }
 
     @KafkaListener(topics = "news.notification", groupId = "newsbot-notification-group")
@@ -31,7 +34,8 @@ public class NewsEventListener {
             String postId = json.has("postId") ? json.get("postId").asText() :
                     (json.has("id") ? json.get("id").asText() : String.valueOf(url.hashCode()));
 
-            InlineKeyboardMarkup reactionKeyboard = keyboardHelper.getPostReactionKeyboard(postId);
+            User user = userService.findById(userId);
+            InlineKeyboardMarkup reactionKeyboard = keyboardHelper.getPostReactionKeyboard(postId, user.getLanguage());
 
             botService.sendNewsAlert(userId, title, url, reactionKeyboard);
 

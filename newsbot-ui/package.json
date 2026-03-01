@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist -r https://github.com/DmitriiKaban/NewsAggregationPlatform.git"
+    "deploy": "gh-pages -d dist -o github"
   },
   "dependencies": {
     "@telegram-apps/sdk": "^3.11.8",
