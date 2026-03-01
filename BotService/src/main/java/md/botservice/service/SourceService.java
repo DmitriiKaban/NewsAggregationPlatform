@@ -3,7 +3,8 @@ package md.botservice.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.dto.TopSourceProjection;
-import md.botservice.exceptions.SourceNotFound;
+import md.botservice.exceptions.SourceNotFoundException;
+import md.botservice.exceptions.TelegramChannelNotFoundException;
 import md.botservice.models.Source;
 import md.botservice.models.SourceType;
 import md.botservice.models.User;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
 
@@ -24,14 +26,14 @@ public class SourceService {
     private final SourceRepository sourceRepository;
     private final UserService userService;
     private final SourceUpdatePublisher sourceUpdatePublisher;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     @Transactional
     public void subscribeUser(User user, String url) {
         String cleanUrl = FormatUtils.normalizeTelegramUrl(url);
 
         if (!verifyTelegramChannel(cleanUrl)) {
-            throw new RuntimeException("Telegram channel not found or not accessible: " + url);
+            throw new TelegramChannelNotFoundException("Telegram channel not found or not accessible: " + url);
         }
 
         Source source = findOrSaveSource(cleanUrl);
@@ -60,7 +62,7 @@ public class SourceService {
     @Transactional
     public void unsubscribeUser(User user, Long sourceId) {
         Source source = sourceRepository.findById(sourceId)
-                .orElseThrow(() -> new RuntimeException("Source not found"));
+                .orElseThrow(() -> new SourceNotFoundException("Source not found"));
 
         user.getSubscriptions().remove(source);
         user = userService.updateUser(user);
@@ -116,45 +118,6 @@ public class SourceService {
         sourceUpdatePublisher.publishSourceUpdate(user);
 
         log.info("User {} set showOnlySubscribedSources to: {}", user.getId(), enabled);
-    }
-
-    @Transactional
-    public void addReadAllSource(User user, String url) {
-        Source source = sourceRepository.findByUrl(url)
-                .orElseGet(() -> {
-                    Source newSource = new Source();
-                    newSource.setUrl(url);
-                    return sourceRepository.save(newSource);
-                });
-
-        user = userService.addReadAllNewsSource(user, source);
-
-        sourceUpdatePublisher.publishSourceUpdate(user);
-
-        log.info("User {} added read-all source: {}", user.getId(), url);
-    }
-
-    @Transactional
-    public void removeReadAllSource(User user, String url) {
-        Source source = sourceRepository.findByUrl(url)
-                .orElseThrow(() -> new RuntimeException("Source not found: " + url));
-
-        userService.removeReadAllNewsSource(user, source);
-
-        sourceUpdatePublisher.publishSourceUpdate(user);
-
-        log.info("User {} removed read-all source: {}", user.getId(), url);
-    }
-
-    public Source findByUrl(String url) {
-        String fullUrl = FormatUtils.normalizeTelegramUrl(url);
-        return sourceRepository.findByUrl(fullUrl)
-                .orElseThrow(() -> new SourceNotFound("Couldn't find source with url: " + url));
-    }
-
-    public void updateUserSourceFiltering(Long userId, String url, boolean readAll) {
-        Source source = findByUrl(url);
-        userService.updateReadAllNewsSource(userId, source.getId(), readAll);
     }
 
     public List<TopSourceProjection> getTopSources() {

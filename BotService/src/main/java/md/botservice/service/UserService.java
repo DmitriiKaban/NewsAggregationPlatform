@@ -138,10 +138,6 @@ public class UserService {
         return repository.getRecommendationsForUser(userId);
     }
 
-    public List<DauProjection> getInsights() {
-        return repository.getDailyActiveUsers();
-    }
-
     public void handlePostReaction(Long userId, String postId, ReactionType reactionType) {
         try {
             UserReactionEvent event = new UserReactionEvent(userId, postId, reactionType);
