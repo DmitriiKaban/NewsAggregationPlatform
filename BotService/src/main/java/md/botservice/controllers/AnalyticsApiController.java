@@ -35,6 +35,6 @@ public class AnalyticsApiController {
         List<DauProjection> dauList = userActivityService.getDailyActiveUsers();
         List<TopSourceProjection> topSources = sourceService.getTopSources();
 
-        return ResponseEntity.ok(InsightsDto.of(topSources, dauList));
+        return ResponseEntity.ok(InsightsDto.of(dauList, topSources));
     }
 }

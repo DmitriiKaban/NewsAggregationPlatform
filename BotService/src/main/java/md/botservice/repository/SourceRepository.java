@@ -14,10 +14,10 @@ public interface SourceRepository extends JpaRepository<Source, Long> {
     Optional<Source> findByUrl(String url);
 
     @Query(value = """
-            SELECT s.name AS name, CAST(COUNT(us.user_id) AS INTEGER) AS subscriberCount
+            SELECT s.name AS name, s.url AS url, CAST(COUNT(us.user_id) AS INTEGER) AS subscriberCount
             FROM sources s
             JOIN user_subscriptions us ON s.id = us.source_id
-            GROUP BY s.id, s.name
+            GROUP BY s.id, s.name, s.url
             ORDER BY subscriberCount DESC
             LIMIT 10
             """, nativeQuery = true)

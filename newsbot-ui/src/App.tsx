@@ -67,6 +67,7 @@ interface Recommendation {
 
 interface TopSource {
     name: string;
+    url: string;
     subscriberCount: number;
 }
 
@@ -111,7 +112,6 @@ const getInitials = (name: string) => {
     return cleanName ? cleanName.substring(0, 2).toUpperCase() : 'NN';
 };
 
-// Robust component that safely bypasses ngrok warnings by fetching the URL first
 const ChannelAvatar = ({ url, name, size = 48, fontSize = 18, apiBaseUrl }: { url: string, name?: string, size?: number, fontSize?: number, apiBaseUrl: string }) => {
     const [imgUrl, setImgUrl] = useState<string | null>(null);
     const [imgError, setImgError] = useState(false);
@@ -867,14 +867,32 @@ export default function App() {
                             {topSources.length > 0 ? (
                                 <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
                                     {topSources.map((source, index) => (
-                                        <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <div style={{display: 'flex', alignItems: 'center', gap: '14px', overflow: 'hidden'}}>
-                                                <ChannelAvatar url={source.name} name={source.name} size={28} fontSize={13} apiBaseUrl={apiBaseUrl} />
-                                                <span style={{fontSize: '15px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{source.name}</span>
+                                        <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0' }}>
+                                            <div style={{display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden', flex: 1}}>
+                                                <div style={{
+                                                    width: '24px', height: '24px', borderRadius: '8px', background: index < 3 ? colors.chartBar : `${colors.hint}30`, color: index < 3 ? '#fff' : colors.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', flexShrink: 0
+                                                }}>
+                                                    #{index + 1}
+                                                </div>
+                                                <ChannelAvatar url={source.url} name={source.name} size={40} fontSize={16} apiBaseUrl={apiBaseUrl} />
+                                                <div style={{overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                                                    <span style={{fontSize: '15px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: colors.text, lineHeight: 1.2}}>
+                                                        {source.name}
+                                                    </span>
+                                                    <a href={getValidUrl(source.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: colors.link, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontWeight: '600' }}>
+                                                        {getHandle(source.url)}
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                    </a>
+                                                </div>
                                             </div>
-                                            <span style={{fontSize: '14px', color: colors.text, fontWeight: '700', flexShrink: 0}}>
-                                                {source.subscriberCount} <span style={{fontSize: '12px', color: colors.hint, fontWeight: '500'}}>{tr('insights.users', lang)}</span>
-                                            </span>
+                                            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0}}>
+                                                <span style={{fontSize: '15px', color: colors.text, fontWeight: '800'}}>
+                                                    {source.subscriberCount}
+                                                </span>
+                                                <span style={{fontSize: '11px', color: colors.hint, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px'}}>
+                                                    {tr('insights.users', lang)}
+                                                </span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

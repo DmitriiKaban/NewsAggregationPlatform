@@ -2,16 +2,21 @@ package md.botservice.dto;
 
 import java.util.List;
 
-public record InsightsDto(List<TopSourceDto> topSources, List<DauDto> dauStats) {
+public record InsightsDto(
+        List<DauDto> dauStats,
+        List<TopSourceDto> topSources
+) {
 
-    public static InsightsDto of(List<TopSourceProjection> topSourceProjections, List<DauProjection> dauProjections) {
-        List<TopSourceDto> sourceDtos = topSourceProjections.stream()
-                .map(p -> new TopSourceDto(p.getName(), p.getSubscriberCount()))
-                .toList();
-        List<DauDto> dauDtos = dauProjections.stream()
+    public static InsightsDto of(List<DauProjection> dauProjections, List<TopSourceProjection> topSourceProjections) {
+        return new InsightsDto(
+                dauProjections.stream()
                         .map(p -> new DauDto(p.getDate(), p.getCount()))
-                        .toList();
-        return new InsightsDto(sourceDtos, dauDtos);
+                        .toList(),
+
+                topSourceProjections.stream()
+                        .map(p -> new TopSourceDto(p.getName(), p.getUrl(), p.getSubscriberCount()))
+                        .toList()
+        );
     }
 
 }
