@@ -13,6 +13,7 @@ import md.botservice.models.User;
 import md.botservice.repository.UserRepository;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +21,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class UserService {
 
     private final UserRepository repository;
@@ -46,6 +48,7 @@ public class UserService {
         return repository.save(user);
     }
 
+    @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile(Long userId) {
         User user = findById(userId);
 
@@ -87,6 +90,7 @@ public class UserService {
         return repository.save(user);
     }
 
+    @Transactional(readOnly = true)
     public User findById(Long userId) {
         return repository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("Couldn't find user with id: " + userId));
@@ -134,6 +138,7 @@ public class UserService {
         log.info("User {} {} read-all for source {}", userId, readAll ? "enabled" : "disabled", sourceId);
     }
 
+    @Transactional(readOnly = true)
     public List<SourceRecommendationProjection> getRecommendationsForUser(Long userId) {
         return repository.getRecommendationsForUser(userId);
     }
