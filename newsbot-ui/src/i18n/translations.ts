@@ -29,7 +29,7 @@ export const translations: Translations = {
     'sources.strict_mode': { en: 'Strict Mode', ro: 'Mod Strict', ru: 'Строгий Режим' },
     'sources.strict_mode_desc': { en: 'Only show news from my added sources', ro: 'Arată doar știri din sursele mele adăugate', ru: 'Показывать только новости из моих источников' },
     'sources.title': { en: 'Your Sources', ro: 'Sursele Tale', ru: 'Ваши Источники' },
-    'sources.add_button': { en: '+ Add', ro: '+ Adaugă', ru: '+ Добавить' },
+    'sources.add_button': { en: 'Add', ro: 'Adaugă', ru: 'Добавить' },
     'sources.empty': { en: 'No sources yet. Add one!', ro: 'Nicio sursă încă. Adaugă una!', ru: 'Источников пока нет. Добавьте!' },
     'sources.bypass_ai': { en: 'Bypass AI (Get all news)', ro: 'Ocolește AI (Primește toate știrile)', ru: 'Без ИИ (Получать все новости)' },
     'sources.added': { en: '✅ Source added!', ro: '✅ Sursă adăugată!', ru: '✅ Источник добавлен!' },

@@ -10,10 +10,7 @@ declare global {
                 sendData: (data: string) => void;
                 expand: () => void;
                 showAlert?: (message: string, callback?: () => void) => void;
-                showPopup?: (params: {
-                    message: string;
-                    buttons?: any[]
-                }, callback?: (buttonId: string) => void) => void;
+                showPopup?: (params: { message: string; buttons?: any[] }, callback?: (buttonId: string) => void) => void;
                 initData?: string;
                 initDataUnsafe?: {
                     user?: {
@@ -55,12 +52,11 @@ declare global {
     }
 }
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 interface Source {
     id: number;
     url: string;
     isReadAll: boolean;
+    name?: string;
 }
 
 interface Recommendation {
@@ -79,17 +75,83 @@ interface DauData {
     count: number;
 }
 
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const showMessage = (message: string) => {
     const tg = window.Telegram?.WebApp;
     if (tg?.showAlert) tg.showAlert(message);
     else if (tg?.showPopup) tg.showPopup({message});
-    else console.log('📢---', message);
+    else alert(message);
 };
 
-// ─── App ──────────────────────────────────────────────────────────────────────
+const getAvatarColor = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash % 360);
+    return `hsl(${hue}, 70%, 60%)`;
+};
+
+const getHandle = (url: string) => {
+    if (!url) return '';
+    const parts = url.split('/');
+    const handle = parts[parts.length - 1];
+    return handle.startsWith('@') ? handle : '@' + handle;
+};
+
+const getValidUrl = (url: string) => {
+    if (!url) return '#';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const cleanHandle = url.startsWith('@') ? url.substring(1) : url;
+    return `https://t.me/${cleanHandle}`;
+};
+
+const getInitials = (name: string) => {
+    if (!name) return 'NN';
+    const cleanName = name.startsWith('@') ? name.substring(1) : name;
+    return cleanName ? cleanName.substring(0, 2).toUpperCase() : 'NN';
+};
+
+// Robust component that safely bypasses ngrok warnings by fetching the URL first
+const ChannelAvatar = ({ url, name, size = 48, fontSize = 18, apiBaseUrl }: { url: string, name?: string, size?: number, fontSize?: number, apiBaseUrl: string }) => {
+    const [imgUrl, setImgUrl] = useState<string | null>(null);
+    const [imgError, setImgError] = useState(false);
+    const handle = getHandle(url).replace('@', '');
+
+    useEffect(() => {
+        if (!handle) return;
+        
+        fetch(`${apiBaseUrl}/sources/avatar?handle=${handle}`, {
+            headers: {"ngrok-skip-browser-warning": "69420"}
+        })
+        .then(r => {
+            if (!r.ok) throw new Error();
+            return r.json();
+        })
+        .then(data => {
+            if (data && data.url) {
+                setImgUrl(data.url);
+            }
+        })
+        .catch(() => setImgError(true));
+    }, [handle, apiBaseUrl]);
+
+    if (imgUrl && !imgError) {
+        return (
+            <img
+                src={imgUrl}
+                alt={name || handle}
+                style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, backgroundColor: '#f0f0f0' }}
+                onError={() => setImgError(true)}
+            />
+        );
+    }
+
+    return (
+        <div style={{ width: size, height: size, borderRadius: '50%', background: getAvatarColor(name || url), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize, fontWeight: '700', flexShrink: 0 }}>
+            {getInitials(name || url)}
+        </div>
+    );
+};
 
 export default function App() {
     const [lang, setLang] = useState<Language>('en');
@@ -116,19 +178,18 @@ export default function App() {
     const theme = tg?.themeParams || {};
 
     const colors = {
-        bg: theme.bg_color || 'var(--tg-theme-bg-color, #ffffff)',
-        text: theme.text_color || 'var(--tg-theme-text-color, #000000)',
-        hint: theme.hint_color || 'var(--tg-theme-hint-color, #999999)',
-        link: theme.link_color || 'var(--tg-theme-link-color, #2481cc)',
-        button: theme.button_color || 'var(--tg-theme-button-color, #2481cc)',
-        buttonText: theme.button_text_color || 'var(--tg-theme-button-text-color, #ffffff)',
-        secondaryBg: theme.secondary_bg_color || 'var(--tg-theme-secondary-bg-color, #f0f0f0)',
+        bg: theme.bg_color || '#ffffff',
+        text: theme.text_color || '#000000',
+        hint: theme.hint_color || '#999999',
+        link: theme.link_color || '#2481cc',
+        button: theme.button_color || '#2481cc',
+        buttonText: theme.button_text_color || '#ffffff',
+        secondaryBg: theme.secondary_bg_color || '#f0f0f0',
         success: '#34C759',
         danger: '#FF3B30',
         chartBar: '#FF9500',
     };
 
-    // ── Init Telegram user ───────────────────────────────────────────────────
     useEffect(() => {
         if (tg) {
             setIsTelegramEnvironment(true);
@@ -170,7 +231,6 @@ export default function App() {
         }
     }, []);
 
-    // ── Fetch profile + analytics ────────────────────────────────────────────
     useEffect(() => {
         if (!user?.id) {
             setLoading(false);
@@ -206,7 +266,6 @@ export default function App() {
                     : (profileData.interests || '');
                 setOriginalInterests(interestsStr);
                 
-                // Initialize tags
                 setInterestTags(interestsStr.split(',').map((s: string) => s.trim()).filter(Boolean));
                 
                 setStrictMode(profileData.strictSourceFiltering || false);
@@ -214,7 +273,12 @@ export default function App() {
                 if (Array.isArray(profileData.sources)) {
                     setSources(
                         profileData.sources
-                            .map((s: any) => ({id: s.id, url: s.url || s.name || '', isReadAll: s.isReadAll || false}))
+                            .map((s: any) => ({
+                                id: s.id, 
+                                url: s.url || '', 
+                                name: s.name || getHandle(s.url || ''),
+                                isReadAll: s.isReadAll || false
+                            }))
                             .filter((s: Source) => s.url)
                     );
                 }
@@ -238,7 +302,6 @@ export default function App() {
         return () => controller.abort();
     }, [user?.id, apiBaseUrl]);
 
-    // ── Back button ──────────────────────────────────────────────────────────
     useEffect(() => {
         if (!isTelegramEnvironment) return;
         const handleBack = () => {
@@ -262,14 +325,12 @@ export default function App() {
         }
     }, [activeTab, isEditingInterests, originalInterests, isTelegramEnvironment]);
 
-    // ── Main button (save interests) ─────────────────────────────────────────
     useEffect(() => {
         if (!isTelegramEnvironment) return;
 
         const handleSaveInterests = async () => {
             if (!user?.id) return;
             
-            // Warn the user if the backend is unreachable due to CORS/Network errors
             if (!backendReachable) {
                 showMessage(tr('error.update_settings', lang) || "Cannot save: Backend is unreachable.");
                 return;
@@ -277,7 +338,7 @@ export default function App() {
 
             try {
                 tg?.MainButton.showProgress?.();
-                const stringToSave = interestTags.join(', '); // Join tags back to a string
+                const stringToSave = interestTags.join(', ');
                 
                 const response = await fetch(`${apiBaseUrl}/users/${user.id}/interests`, {
                     method: 'POST',
@@ -313,7 +374,6 @@ export default function App() {
         }
     }, [activeTab, isEditingInterests, interestTags, user?.id, backendReachable, apiBaseUrl, isTelegramEnvironment, lang]);
 
-    // ── Actions ──────────────────────────────────────────────────────────────
     const toggleStrictMode = async () => {
         if (!backendReachable || !user?.id) return;
         const newState = !strictMode;
@@ -368,7 +428,8 @@ export default function App() {
                 if (Array.isArray(data.sources)) {
                     setSources(data.sources.map((s: any) => ({
                         id: s.id,
-                        url: s.url || s.name || '',
+                        url: s.url || '',
+                        name: s.name || getHandle(s.url || ''),
                         isReadAll: s.isReadAll || false
                     })).filter((s: Source) => s.url));
                 }
@@ -396,7 +457,6 @@ export default function App() {
 
     const maxDau = dauStats.length > 0 ? Math.max(...dauStats.map(d => d.count)) : 1;
 
-    // ── Loading ───────────────────────────────────────────────────────────────
     if (loading || !languageLoaded) return (
         <div style={{
             minHeight: '100vh',
@@ -406,13 +466,22 @@ export default function App() {
             justifyContent: 'center'
         }}>
             <div style={{textAlign: 'center', color: colors.text}}>
-                <div style={{fontSize: '64px', marginBottom: '24px'}}>📰</div>
-                <div style={{fontSize: '18px', fontWeight: '500'}}>{tr('loading', lang)}</div>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 2s linear infinite', marginBottom: '16px' }}>
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                <div style={{fontSize: '16px', fontWeight: '500'}}>{tr('loading', lang)}</div>
+                <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
             </div>
         </div>
     );
 
-    // ── No user ───────────────────────────────────────────────────────────────
     if (!user) return (
         <div style={{
             minHeight: '100vh',
@@ -420,31 +489,19 @@ export default function App() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
-            fontFamily: '-apple-system, sans-serif'
+            padding: '24px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}>
             <div style={{textAlign: 'center', maxWidth: '400px', color: colors.text}}>
-                <div style={{fontSize: '64px', marginBottom: '24px'}}>❌</div>
-                <h2 style={{
-                    fontSize: '24px',
-                    fontWeight: '600',
-                    margin: '0 0 12px 0'
-                }}>{tr('error.user_not_found', lang)}</h2>
-                <p style={{
-                    fontSize: '15px',
-                    color: colors.hint,
-                    lineHeight: 1.5,
-                    margin: '0 0 20px 0'
-                }}>{tr('error.open_from_telegram', lang)}</p>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={colors.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom: '24px'}}>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                <h2 style={{fontSize: '24px', fontWeight: '700', margin: '0 0 12px 0'}}>{tr('error.user_not_found', lang)}</h2>
+                <p style={{fontSize: '15px', color: colors.hint, lineHeight: 1.5, margin: '0 0 24px 0'}}>{tr('error.open_from_telegram', lang)}</p>
                 {error && (
-                    <div style={{
-                        padding: '12px',
-                        background: `${colors.hint}20`,
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                        color: colors.hint,
-                        textAlign: 'left'
-                    }}>
+                    <div style={{padding: '16px', background: `${colors.danger}15`, borderRadius: '12px', fontSize: '13px', color: colors.danger, textAlign: 'left', border: `1px solid ${colors.danger}30`}}>
                         <strong>Error:</strong> {error}
                     </div>
                 )}
@@ -452,143 +509,132 @@ export default function App() {
         </div>
     );
 
-    // ── Main UI ───────────────────────────────────────────────────────────────
     return (
         <div style={{
             minHeight: '100vh',
             background: colors.bg,
             color: colors.text,
-            fontFamily: '-apple-system, sans-serif',
-            paddingBottom: '20px'
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            paddingBottom: '40px'
         }}>
-
-            {/* Header */}
-            <div style={{padding: '20px', borderBottom: `1px solid ${colors.hint}40`}}>
-                <h1 style={{fontSize: '28px', fontWeight: '700', margin: '0 0 8px 0', color: colors.text}}>
+            <div style={{padding: '24px 20px 20px 20px'}}>
+                <h1 style={{fontSize: '28px', fontWeight: '800', margin: '0 0 6px 0', color: colors.text, letterSpacing: '-0.5px'}}>
                     {tr('header.greeting', lang, {name: displayName})}
                 </h1>
-                <p style={{fontSize: '15px', color: colors.hint, margin: 0}}>{tr('header.subtitle', lang)}</p>
+                <p style={{fontSize: '15px', color: colors.hint, margin: 0, fontWeight: '500'}}>{tr('header.subtitle', lang)}</p>
             </div>
 
-            {/* Tabs */}
-            <div style={{display: 'flex', borderBottom: `2px solid ${colors.hint}20`, background: colors.secondaryBg}}>
-                <TabButton active={activeTab === 'interests'} onClick={() => {
-                    setActiveTab('interests');
-                    setIsEditingInterests(false);
-                }} colors={colors}>
-                    {tr('tab.interests', lang)}
-                </TabButton>
-                <TabButton active={activeTab === 'sources'} onClick={() => {
-                    setActiveTab('sources');
-                    setIsEditingInterests(false);
-                }} colors={colors}>
-                    {tr('tab.sources', lang)}
-                </TabButton>
-                <TabButton active={activeTab === 'insights'} onClick={() => {
-                    setActiveTab('insights');
-                    setIsEditingInterests(false);
-                }} colors={colors}>
-                    {tr('tab.insights', lang)}
-                </TabButton>
+            <div style={{
+                display: 'flex', 
+                padding: '0 16px',
+                marginBottom: '20px',
+                position: 'sticky',
+                top: 0,
+                background: colors.bg,
+                zIndex: 10,
+                paddingTop: '10px',
+                paddingBottom: '10px'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    width: '100%',
+                    background: colors.secondaryBg,
+                    borderRadius: '16px',
+                    padding: '4px'
+                }}>
+                    <TabButton active={activeTab === 'interests'} onClick={() => { setActiveTab('interests'); setIsEditingInterests(false); }} colors={colors}>
+                        {tr('tab.interests', lang)}
+                    </TabButton>
+                    <TabButton active={activeTab === 'sources'} onClick={() => { setActiveTab('sources'); setIsEditingInterests(false); }} colors={colors}>
+                        {tr('tab.sources', lang)}
+                    </TabButton>
+                    <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); setIsEditingInterests(false); }} colors={colors}>
+                        {tr('tab.insights', lang)}
+                    </TabButton>
+                </div>
             </div>
 
-            <div style={{padding: '20px'}}>
-
-                {/* ── Interests Tab ── */}
-
+            <div style={{padding: '0 20px'}}>
                 {activeTab === 'interests' && (
-                    <div>
-
-                        <label style={{
-                            display: 'block',
-                            fontSize: '15px',
-                            fontWeight: '600',
-                            marginBottom: '12px',
-                            color: colors.text
-                        }}>
+                    <div style={{animation: 'fadeIn 0.3s ease-in-out'}}>
+                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: colors.text}}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
                             {tr('interests.title', lang)}
                         </label>
 
-                        {/* Editable Interests Area */}
-                        <div
-                            onClick={() => !isEditingInterests && setIsEditingInterests(true)}
-                            style={{
-                                cursor: !isEditingInterests ? 'pointer' : 'default',
-                                position: 'relative'
-                            }}
-                        >
+                        <div onClick={() => !isEditingInterests && setIsEditingInterests(true)} style={{cursor: !isEditingInterests ? 'pointer' : 'default'}}>
                             {!isEditingInterests ? (
                                 <div style={{
-                                    padding: '16px',
+                                    padding: '20px',
                                     background: colors.secondaryBg,
-                                    borderRadius: '12px',
-                                    border: `1px solid ${colors.hint}40`,
-                                    minHeight: '80px',
+                                    borderRadius: '20px',
+                                    border: `1px solid ${colors.hint}20`,
+                                    minHeight: '100px',
                                     display: 'flex',
                                     flexWrap: 'wrap',
-                                    gap: '8px',
+                                    gap: '10px',
                                     alignItems: 'flex-start',
-                                    transition: 'all 0.2s'
+                                    boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                                    position: 'relative',
+                                    overflow: 'hidden'
                                 }}>
                                     {interestTags.length > 0 ? (
                                         interestTags.map((tag, i) => (
                                             <span key={i} style={{
                                                 background: colors.bg,
-                                                border: `1px solid ${colors.button}40`,
+                                                border: `1px solid ${colors.button}30`,
                                                 color: colors.text,
-                                                padding: '6px 12px',
-                                                borderRadius: '16px',
+                                                padding: '8px 16px',
+                                                borderRadius: '20px',
                                                 fontSize: '14px',
-                                                fontWeight: '500'
+                                                fontWeight: '600',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
                                             }}>{tag}</span>
                                         ))
                                     ) : (
-                                        <span style={{ color: colors.hint, fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>
+                                        <span style={{ color: colors.hint, fontStyle: 'italic', display: 'flex', alignItems: 'center', fontWeight: '500' }}>
                                             {tr('interests.placeholder', lang)}
                                         </span>
                                     )}
-                                    <span style={{ fontSize: '18px', color: colors.hint, marginLeft: 'auto', opacity: 0.6 }}>✏️</span>
+                                    <div style={{ position: 'absolute', right: '16px', bottom: '16px', background: colors.bg, padding: '8px', borderRadius: '50%', display: 'flex', boxShadow: '0 4px 12px rgba(0,0,0,0.05)'}}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                    </div>
                                 </div>
                             ) : (
                                 <div>
                                     <div style={{
                                         display: 'flex',
                                         flexWrap: 'wrap',
-                                        gap: '8px',
-                                        padding: '12px',
+                                        gap: '10px',
+                                        padding: '16px',
                                         border: `2px solid ${colors.button}`,
-                                        borderRadius: '12px',
+                                        borderRadius: '20px',
                                         background: colors.bg,
-                                        minHeight: '120px',
-                                        alignItems: 'flex-start'
+                                        minHeight: '140px',
+                                        alignItems: 'flex-start',
+                                        boxShadow: `0 0 0 4px ${colors.button}15`
                                     }}>
                                         {interestTags.map((tag, i) => (
                                             <div key={i} style={{
-                                                background: `${colors.button}20`,
+                                                background: `${colors.button}15`,
                                                 color: colors.button,
-                                                padding: '6px 10px',
-                                                borderRadius: '16px',
+                                                padding: '6px 12px',
+                                                borderRadius: '20px',
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                gap: '6px',
+                                                gap: '8px',
                                                 fontSize: '14px',
-                                                fontWeight: '500'
+                                                fontWeight: '600'
                                             }}>
                                                 <span>{tag}</span>
                                                 <button onClick={(e) => {
                                                     e.stopPropagation();
                                                     setInterestTags(interestTags.filter((_, index) => index !== i));
                                                 }} style={{
-                                                    background: 'transparent',
-                                                    border: 'none',
-                                                    color: colors.button,
-                                                    cursor: 'pointer',
-                                                    padding: '0',
-                                                    fontSize: '14px',
-                                                    fontWeight: 'bold',
-                                                    display: 'flex',
-                                                    alignItems: 'center'
-                                                }}>✕</button>
+                                                    background: 'transparent', border: 'none', color: colors.button, cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center', opacity: 0.7
+                                                }}>
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                </button>
                                             </div>
                                         ))}
                                         <input
@@ -596,7 +642,6 @@ export default function App() {
                                             value={tagInput}
                                             onChange={e => {
                                                 const value = e.target.value;
-                                                // Intercept any commas from typing, pasting, or dragging text
                                                 if (value.includes(',')) {
                                                     const newTags = value.split(',').map(t => t.trim()).filter(Boolean);
                                                     if (newTags.length > 0) {
@@ -606,14 +651,12 @@ export default function App() {
                                                             return Array.from(tagsSet);
                                                         });
                                                     }
-                                                    setTagInput(''); // Clear input after creating tags
+                                                    setTagInput('');
                                                 } else {
                                                     setTagInput(value);
                                                 }
                                             }}
                                             onKeyDown={e => {
-                                                // We only need to handle Enter and Backspace here now, 
-                                                // because onChange automatically catches the commas.
                                                 if (e.key === 'Enter') {
                                                     e.preventDefault();
                                                     const newTag = tagInput.trim();
@@ -628,118 +671,70 @@ export default function App() {
                                             placeholder={interestTags.length === 0 ? tr('interests.input_placeholder', lang) : "Type and press Enter..."}
                                             autoFocus
                                             style={{
-                                                flex: 1,
-                                                minWidth: '140px',
-                                                border: 'none',
-                                                outline: 'none',
-                                                background: 'transparent',
-                                                color: colors.text,
-                                                fontSize: '15px',
-                                                padding: '6px 0',
-                                                fontFamily: 'inherit'
+                                                flex: 1, minWidth: '150px', border: 'none', outline: 'none', background: 'transparent', color: colors.text, fontSize: '15px', padding: '8px 0', fontFamily: 'inherit', fontWeight: '500'
                                             }}
                                         />
                                     </div>
-                                    <p style={{ fontSize: '13px', color: colors.hint, marginTop: '8px', marginBottom: 0 }}>
+                                    <p style={{ fontSize: '13px', color: colors.hint, marginTop: '12px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                                         {tr('interests.hint', lang) || 'Press Enter or comma to add a new tag'}
                                     </p>
                                 </div>
                             )}
                         </div>
 
-                        {/* Mode indicator */}
                         <div style={{
-                            marginTop: '16px',
-                            padding: '10px 14px',
-                            background: strictMode ? `${colors.danger}15` : `${colors.button}15`,
-                            borderRadius: '10px',
-                            border: `1px solid ${strictMode ? colors.danger : colors.button}30`
+                            marginTop: '24px',
+                            padding: '16px',
+                            background: strictMode ? `${colors.danger}10` : `${colors.button}10`,
+                            borderRadius: '16px',
+                            border: `1px solid ${strictMode ? colors.danger : colors.button}20`,
+                            display: 'flex',
+                            gap: '12px',
+                            alignItems: 'flex-start'
                         }}>
-                            <div style={{
-                                fontSize: '13px',
-                                fontWeight: '600',
-                                color: strictMode ? colors.danger : colors.button
-                            }}>
-                                {strictMode ? tr('interests.mode_strict', lang) : tr('interests.mode_ai', lang)}
+                            <div style={{marginTop: '2px'}}>
+                                {strictMode ? (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                ) : (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                                )}
                             </div>
-                            <div style={{
-                                fontSize: '12px',
-                                color: colors.hint,
-                                marginTop: '2px'
-                            }}>
-                                {strictMode ? tr('interests.mode_strict_desc', lang) : tr('interests.mode_ai_desc', lang)}
+                            <div>
+                                <div style={{ fontSize: '14px', fontWeight: '700', color: strictMode ? colors.danger : colors.button }}>
+                                    {strictMode ? tr('interests.mode_strict', lang) : tr('interests.mode_ai', lang)}
+                                </div>
+                                <div style={{ fontSize: '13px', color: colors.hint, marginTop: '4px', lineHeight: 1.4 }}>
+                                    {strictMode ? tr('interests.mode_strict_desc', lang) : tr('interests.mode_ai_desc', lang)}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Recommendations */}
                         {!isEditingInterests && recommendations.length > 0 && (
-                            <div style={{ marginTop: '32px' }}>
-                                <h3 style={{
-                                    fontSize: '16px',
-                                    fontWeight: '600',
-                                    marginBottom: '4px'
-                                }}>
+                            <div style={{ marginTop: '36px' }}>
+                                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '6px' }}>
                                     {tr('recommendations.title', lang)}
                                 </h3>
-                                <p style={{
-                                    fontSize: '13px',
-                                    color: colors.hint,
-                                    marginBottom: '12px'
-                                }}>
+                                <p style={{ fontSize: '14px', color: colors.hint, marginBottom: '16px', fontWeight: '500' }}>
                                     {tr('recommendations.subtitle', lang)}
                                 </p>
-                                <div style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '10px'
-                                }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                     {recommendations.map(rec => (
-                                        <div
-                                            key={rec.url}
-                                            style={{
-                                                padding: '12px 16px',
-                                                background: colors.secondaryBg,
-                                                borderRadius: '12px',
-                                                border: `1px solid ${colors.button}40`,
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center'
-                                            }}
-                                        >
-                                            <div>
-                                                <div style={{
-                                                    fontSize: '15px',
-                                                    fontWeight: '500'
-                                                }}>
-                                                    {rec.name}
-                                                </div>
-                                                <div style={{
-                                                    fontSize: '12px',
-                                                    color: colors.hint,
-                                                    marginTop: '2px'
-                                                }}>
-                                                    {tr(
-                                                        rec.peerCount > 1
-                                                            ? 'recommendations.peers_plural'
-                                                            : 'recommendations.peers',
-                                                        lang,
-                                                        { count: rec.peerCount }
-                                                    )}
+                                        <div key={rec.url} style={{
+                                            padding: '16px', background: colors.secondaryBg, borderRadius: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${colors.hint}20`
+                                        }}>
+                                            <div style={{display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden'}}>
+                                                <ChannelAvatar url={rec.url} name={rec.name} size={42} fontSize={16} apiBaseUrl={apiBaseUrl} />
+                                                <div style={{overflow: 'hidden'}}>
+                                                    <div style={{ fontSize: '15px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rec.name}</div>
+                                                    <div style={{ fontSize: '13px', color: colors.hint, marginTop: '2px', fontWeight: '500' }}>
+                                                        {tr(rec.peerCount > 1 ? 'recommendations.peers_plural' : 'recommendations.peers', lang, { count: rec.peerCount })}
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => handleAddSource(rec.url)}
-                                                style={{
-                                                    background: colors.button,
-                                                    color: colors.buttonText,
-                                                    border: 'none',
-                                                    padding: '6px 14px',
-                                                    borderRadius: '16px',
-                                                    fontSize: '13px',
-                                                    fontWeight: '600',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
+                                            <button onClick={() => handleAddSource(rec.url)} style={{
+                                                background: colors.button, color: colors.buttonText, border: 'none', padding: '8px 16px', borderRadius: '14px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', flexShrink: 0
+                                            }}>
                                                 {tr('recommendations.add', lang)}
                                             </button>
                                         </div>
@@ -750,140 +745,76 @@ export default function App() {
                     </div>
                 )}
 
-                {/* ── Sources Tab ── */}
                 {activeTab === 'sources' && (
-                    <div>
-                        {/* Strict mode toggle */}
+                    <div style={{animation: 'fadeIn 0.3s ease-in-out'}}>
                         <div style={{
-                            background: colors.secondaryBg,
-                            padding: '16px',
-                            borderRadius: '12px',
-                            marginBottom: '20px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            border: `1px solid ${colors.hint}40`
+                            background: colors.secondaryBg, padding: '20px', borderRadius: '20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${colors.hint}20`
                         }}>
                             <div>
-                                <h4 style={{
-                                    margin: '0 0 4px 0',
-                                    fontSize: '15px'
-                                }}>{tr('sources.strict_mode', lang)}</h4>
-                                <span style={{
-                                    fontSize: '13px',
-                                    color: colors.hint
-                                }}>{tr('sources.strict_mode_desc', lang)}</span>
+                                <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700' }}>{tr('sources.strict_mode', lang)}</h4>
+                                <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '500' }}>{tr('sources.strict_mode_desc', lang)}</span>
                             </div>
                             <div onClick={toggleStrictMode} style={{
-                                width: '46px',
-                                height: '26px',
-                                background: strictMode ? colors.success : colors.hint,
-                                borderRadius: '13px',
-                                position: 'relative',
-                                cursor: 'pointer'
+                                width: '52px', height: '30px', background: strictMode ? colors.success : colors.hint, borderRadius: '15px', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.3s'
                             }}>
                                 <div style={{
-                                    width: '22px',
-                                    height: '22px',
-                                    background: '#fff',
-                                    borderRadius: '50%',
-                                    position: 'absolute',
-                                    top: '2px',
-                                    left: strictMode ? '22px' : '2px',
-                                    transition: 'left 0.3s'
+                                    width: '26px', height: '26px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '2px', left: strictMode ? '24px' : '2px', transition: 'left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                 }}/>
                             </div>
                         </div>
 
-                        {/* Source list */}
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '16px'
-                        }}>
-                            <h3 style={{
-                                margin: 0,
-                                fontSize: '17px',
-                                fontWeight: '600'
-                            }}>{tr('sources.title', lang)}</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{tr('sources.title', lang)}</h3>
                             <button onClick={() => handleAddSource()} style={{
-                                padding: '8px 16px',
-                                background: colors.button,
-                                color: colors.buttonText,
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: '600',
-                                cursor: 'pointer'
+                                padding: '10px 16px', background: colors.button, color: colors.buttonText, border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
                             }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                 {tr('sources.add_button', lang)}
                             </button>
                         </div>
 
                         {sources.length === 0 ? (
-                            <div style={{
-                                textAlign: 'center',
-                                color: colors.hint,
-                                padding: '32px 0'
-                            }}>{tr('sources.empty', lang)}</div>
+                            <div style={{ textAlign: 'center', color: colors.hint, padding: '40px 0', fontWeight: '500' }}>
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity: 0.5, marginBottom: '12px'}}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                <div>{tr('sources.empty', lang)}</div>
+                            </div>
                         ) : (
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
                                 {sources.map((source, i) => (
                                     <div key={source.id} style={{
-                                        padding: '14px',
-                                        background: colors.secondaryBg,
-                                        borderRadius: '12px',
-                                        border: `1px solid ${colors.hint}20`
+                                        padding: '16px', background: colors.secondaryBg, borderRadius: '20px', border: `1px solid ${colors.hint}20`, display: 'flex', flexDirection: 'column', gap: '16px'
                                     }}>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            marginBottom: '12px'
-                                        }}>
-                                            <span style={{
-                                                fontSize: '15px',
-                                                wordBreak: 'break-all',
-                                                fontWeight: '500'
-                                            }}>📡 {source.url}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
+                                                <ChannelAvatar url={source.url} name={source.name} size={48} fontSize={18} apiBaseUrl={apiBaseUrl} />
+                                                <div style={{overflow: 'hidden'}}>
+                                                    <div style={{ fontSize: '16px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {source.name || getHandle(source.url)}
+                                                    </div>
+                                                    <a href={getValidUrl(source.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: colors.link, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontWeight: '500' }}>
+                                                        {getHandle(source.url)}
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                    </a>
+                                                </div>
+                                            </div>
                                             <button onClick={() => handleRemoveSource(source.url, i)} style={{
-                                                background: 'transparent',
-                                                border: 'none',
-                                                color: colors.danger,
-                                                fontSize: '18px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer'
-                                            }}>✕
+                                                background: `${colors.danger}15`, border: 'none', color: colors.danger, width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                                            }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                             </button>
                                         </div>
                                         <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            borderTop: `1px solid ${colors.hint}20`,
-                                            paddingTop: '12px'
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${colors.hint}20`, paddingTop: '16px'
                                         }}>
-                                            <span style={{
-                                                fontSize: '14px',
-                                                color: colors.hint
-                                            }}>{tr('sources.bypass_ai', lang)}</span>
+                                            <span style={{ fontSize: '14px', color: colors.text, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                                {tr('sources.bypass_ai', lang)}
+                                            </span>
                                             <div onClick={() => toggleReadAll(source.id, i)} style={{
-                                                width: '40px',
-                                                height: '22px',
-                                                background: source.isReadAll ? colors.button : colors.hint,
-                                                borderRadius: '11px',
-                                                position: 'relative',
-                                                cursor: 'pointer'
+                                                width: '46px', height: '26px', background: source.isReadAll ? colors.button : colors.hint, borderRadius: '13px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s'
                                             }}>
                                                 <div style={{
-                                                    width: '18px',
-                                                    height: '18px',
-                                                    background: '#fff',
-                                                    borderRadius: '50%',
-                                                    position: 'absolute',
-                                                    top: '2px',
-                                                    left: source.isReadAll ? '20px' : '2px',
-                                                    transition: 'left 0.3s'
+                                                    width: '22px', height: '22px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '2px', left: source.isReadAll ? '22px' : '2px', transition: 'left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                                 }}/>
                                             </div>
                                         </div>
@@ -894,150 +825,83 @@ export default function App() {
                     </div>
                 )}
 
-                {/* ── Insights Tab ── */}
                 {activeTab === 'insights' && (
-                    <div>
-                        <h3 style={{
-                            fontSize: '18px',
-                            fontWeight: '700',
-                            marginBottom: '16px'
-                        }}>{tr('insights.title', lang)}</h3>
+                    <div style={{animation: 'fadeIn 0.3s ease-in-out'}}>
+                        <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '20px' }}>{tr('insights.title', lang)}</h3>
 
-                        {/* DAU chart */}
                         <div style={{
-                            background: colors.secondaryBg,
-                            padding: '20px 16px',
-                            borderRadius: '16px',
-                            marginBottom: '24px',
-                            border: `1px solid ${colors.hint}20`
+                            background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', marginBottom: '24px', border: `1px solid ${colors.hint}20`
                         }}>
-                            <h4 style={{margin: '0 0 4px 0', fontSize: '15px'}}>{tr('insights.dau_title', lang)}</h4>
-                            <p style={{
-                                margin: '0 0 20px 0',
-                                fontSize: '12px',
-                                color: colors.hint
-                            }}>{tr('insights.dau_desc', lang)}</p>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                justifyContent: 'space-between',
-                                height: '140px',
-                                paddingTop: '10px'
-                            }}>
+                            <h4 style={{margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.chartBar} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                                {tr('insights.dau_title', lang)}
+                            </h4>
+                            <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: colors.hint, fontWeight: '500' }}>{tr('insights.dau_desc', lang)}</p>
+                            
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '160px', paddingTop: '10px' }}>
                                 {dauStats.length > 0 ? dauStats.map((d, index) => {
-                                    const heightPercent = Math.max((d.count / maxDau) * 100, 5);
-                                    const shortDate = new Date(d.date).toLocaleDateString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric'
-                                    });
+                                    const heightPercent = Math.max((d.count / maxDau) * 100, 8);
+                                    const shortDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                                     return (
-                                        <div key={index} style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            flex: 1
-                                        }}>
-                                            <span style={{
-                                                fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                marginBottom: '4px',
-                                                color: colors.text
-                                            }}>{d.count}</span>
+                                        <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                                            <span style={{ fontSize: '12px', fontWeight: '800', marginBottom: '6px', color: colors.text }}>{d.count}</span>
                                             <div style={{
-                                                width: '28px',
-                                                height: `${heightPercent}px`,
-                                                background: `linear-gradient(180deg, ${colors.chartBar} 0%, ${colors.chartBar}80 100%)`,
-                                                borderRadius: '6px 6px 0 0',
-                                                transition: 'height 0.5s ease-out'
+                                                width: '32px', height: `${heightPercent}px`, background: `linear-gradient(180deg, ${colors.chartBar} 0%, ${colors.chartBar}40 100%)`, borderRadius: '8px 8px 0 0', transition: 'height 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                                             }}/>
-                                            <span style={{
-                                                fontSize: '10px',
-                                                color: colors.hint,
-                                                marginTop: '8px',
-                                                transform: 'rotate(-45deg)',
-                                                whiteSpace: 'nowrap'
-                                            }}>{shortDate}</span>
+                                            <span style={{ fontSize: '11px', color: colors.hint, marginTop: '10px', transform: 'rotate(-45deg)', whiteSpace: 'nowrap', fontWeight: '600' }}>{shortDate}</span>
                                         </div>
                                     );
                                 }) : (
-                                    <div style={{
-                                        width: '100%',
-                                        textAlign: 'center',
-                                        color: colors.hint,
-                                        alignSelf: 'center'
-                                    }}>{tr('insights.no_data', lang)}</div>
+                                    <div style={{ width: '100%', textAlign: 'center', color: colors.hint, alignSelf: 'center', fontWeight: '500' }}>{tr('insights.no_data', lang)}</div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Top sources */}
                         <div style={{
-                            background: colors.secondaryBg,
-                            padding: '20px 16px',
-                            borderRadius: '16px',
-                            border: `1px solid ${colors.hint}20`
+                            background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', border: `1px solid ${colors.hint}20`
                         }}>
-                            <h4 style={{margin: '0 0 16px 0', fontSize: '15px'}}>{tr('insights.top_sources', lang)}</h4>
+                            <h4 style={{margin: '0 0 20px 0', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                {tr('insights.top_sources', lang)}
+                            </h4>
                             {topSources.length > 0 ? (
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
                                     {topSources.map((source, index) => (
-                                        <div key={index} style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between'
-                                        }}>
-                                            <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                                <div style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    borderRadius: '50%',
-                                                    background: index < 3 ? colors.chartBar : `${colors.hint}40`,
-                                                    color: index < 3 ? '#fff' : colors.text,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    fontSize: '12px',
-                                                    fontWeight: 'bold'
-                                                }}>
-                                                    {index + 1}
-                                                </div>
-                                                <span style={{fontSize: '14px', fontWeight: '500'}}>{source.name}</span>
+                                        <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <div style={{display: 'flex', alignItems: 'center', gap: '14px', overflow: 'hidden'}}>
+                                                <ChannelAvatar url={source.name} name={source.name} size={28} fontSize={13} apiBaseUrl={apiBaseUrl} />
+                                                <span style={{fontSize: '15px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{source.name}</span>
                                             </div>
-                                            <span style={{fontSize: '13px', color: colors.hint, fontWeight: '600'}}>
-                                                {source.subscriberCount} <span
-                                                style={{fontSize: '11px'}}>{tr('insights.users', lang)}</span>
+                                            <span style={{fontSize: '14px', color: colors.text, fontWeight: '700', flexShrink: 0}}>
+                                                {source.subscriberCount} <span style={{fontSize: '12px', color: colors.hint, fontWeight: '500'}}>{tr('insights.users', lang)}</span>
                                             </span>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div style={{
-                                    textAlign: 'center',
-                                    color: colors.hint
-                                }}>{tr('insights.no_sources', lang)}</div>
+                                <div style={{ textAlign: 'center', color: colors.hint, fontWeight: '500' }}>{tr('insights.no_sources', lang)}</div>
                             )}
                         </div>
                     </div>
                 )}
             </div>
+            <style>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
         </div>
     );
 }
 
-// ─── TabButton ────────────────────────────────────────────────────────────────
-
-function TabButton({active, onClick, children, colors}: {
-    active: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-    colors: any;
-}) {
+function TabButton({active, onClick, children, colors}: { active: boolean; onClick: () => void; children: React.ReactNode; colors: any; }) {
     return (
         <button onClick={onClick} style={{
-            flex: 1, padding: '14px 4px', background: 'transparent', border: 'none',
-            borderBottom: active ? `3px solid ${colors.button}` : '3px solid transparent',
-            color: active ? colors.button : colors.hint, fontSize: '15px', fontWeight: '600',
-            cursor: 'pointer', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            flex: 1, padding: '10px 4px', background: active ? colors.bg : 'transparent', border: 'none',
+            borderRadius: '12px', color: active ? colors.text : colors.hint, fontSize: '14px', fontWeight: '700',
+            cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            boxShadow: active ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
         }}>
             {children}
         </button>
