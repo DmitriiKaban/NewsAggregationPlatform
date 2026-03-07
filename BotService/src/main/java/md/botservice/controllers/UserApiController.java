@@ -1,5 +1,6 @@
 package md.botservice.controllers;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.dto.SourceRequest;
@@ -33,7 +34,7 @@ public class UserApiController {
     }
 
     @PostMapping("/{userId}/interests")
-    public ResponseEntity<Void> updateInterests(@PathVariable Long userId, @RequestBody InterestRequest request) {
+    public ResponseEntity<Void> updateInterests(@PathVariable Long userId, @Valid @RequestBody InterestRequest request) {
         try {
             userService.updateInterests(userId, request.interest());
             log.info("Interests updated for user {}", userId);

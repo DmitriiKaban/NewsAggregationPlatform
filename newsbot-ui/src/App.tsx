@@ -93,8 +93,9 @@ const showMessage = (message: string) => {
 
 export default function App() {
     const [lang, setLang] = useState<Language>('en');
-    const [interests, setInterests] = useState('');
     const [originalInterests, setOriginalInterests] = useState('');
+    const [interestTags, setInterestTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
     const [isEditingInterests, setIsEditingInterests] = useState(false);
     const [sources, setSources] = useState<Source[]>([]);
     const [strictMode, setStrictMode] = useState(false);
@@ -110,7 +111,7 @@ export default function App() {
     const [displayName, setDisplayName] = useState('there');
     const [languageLoaded, setLanguageLoaded] = useState(false);
 
-    const apiBaseUrl = "https://2141-212-28-65-233.ngrok-free.app/api";
+    const apiBaseUrl = "https://20ec-212-28-65-233.ngrok-free.app/api";
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
 
@@ -191,15 +192,10 @@ export default function App() {
             })),
         ])
             .then(([profileData, recommendationsData, insightsData]) => {
-                console.log("Full profile data:", profileData);
-                console.log("Language field:", profileData.language);
-                console.log("Language valid:", ['en', 'ro', 'ru'].includes(profileData.language));
-
                 const backendLang = profileData.language?.toLowerCase();
 
                 if (backendLang && ['en', 'ro', 'ru'].includes(backendLang)) {
                     setLang(backendLang as Language);
-                    console.log("Language:", backendLang);
                 }
                 setLanguageLoaded(true);
 
@@ -208,8 +204,11 @@ export default function App() {
                 const interestsStr = Array.isArray(profileData.interests)
                     ? profileData.interests.join(', ')
                     : (profileData.interests || '');
-                setInterests(interestsStr);
                 setOriginalInterests(interestsStr);
+                
+                // Initialize tags
+                setInterestTags(interestsStr.split(',').map((s: string) => s.trim()).filter(Boolean));
+                
                 setStrictMode(profileData.strictSourceFiltering || false);
 
                 if (Array.isArray(profileData.sources)) {
@@ -245,7 +244,7 @@ export default function App() {
         const handleBack = () => {
             if (isEditingInterests) {
                 setIsEditingInterests(false);
-                setInterests(originalInterests);
+                setInterestTags(originalInterests.split(',').map((s: string) => s.trim()).filter(Boolean));
             } else {
                 setActiveTab('interests');
             }
@@ -268,17 +267,31 @@ export default function App() {
         if (!isTelegramEnvironment) return;
 
         const handleSaveInterests = async () => {
-            if (!user?.id || !backendReachable) return;
+            if (!user?.id) return;
+            
+            // Warn the user if the backend is unreachable due to CORS/Network errors
+            if (!backendReachable) {
+                showMessage(tr('error.update_settings', lang) || "Cannot save: Backend is unreachable.");
+                return;
+            }
+
             try {
                 tg?.MainButton.showProgress?.();
+                const stringToSave = interestTags.join(', '); // Join tags back to a string
+                
                 const response = await fetch(`${apiBaseUrl}/users/${user.id}/interests`, {
                     method: 'POST',
                     headers: {"ngrok-skip-browser-warning": "69420", "Content-Type": "application/json"},
-                    body: JSON.stringify({interest: interests}),
+                    body: JSON.stringify({interest: stringToSave}),
                 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    throw new Error(errorData?.message || `HTTP ${response.status}`);
+                }
+                
                 tg?.MainButton.hideProgress?.();
-                setOriginalInterests(interests);
+                setOriginalInterests(stringToSave);
                 setIsEditingInterests(false);
                 showMessage(tr('interests.saved', lang));
             } catch (err: any) {
@@ -287,7 +300,7 @@ export default function App() {
             }
         };
 
-        if (activeTab === 'interests' && isEditingInterests && interests.trim()) {
+        if (activeTab === 'interests' && isEditingInterests) {
             if (tg?.MainButton) {
                 tg.MainButton.setText(tr('interests.save_button', lang));
                 tg.MainButton.enable();
@@ -298,7 +311,7 @@ export default function App() {
         } else {
             tg?.MainButton.hide();
         }
-    }, [activeTab, isEditingInterests, interests, user?.id, backendReachable, apiBaseUrl, isTelegramEnvironment, lang]);
+    }, [activeTab, isEditingInterests, interestTags, user?.id, backendReachable, apiBaseUrl, isTelegramEnvironment, lang]);
 
     // ── Actions ──────────────────────────────────────────────────────────────
     const toggleStrictMode = async () => {
@@ -504,7 +517,6 @@ export default function App() {
                                 position: 'relative'
                             }}
                         >
-
                             {!isEditingInterests ? (
                                 <div style={{
                                     padding: '16px',
@@ -512,55 +524,124 @@ export default function App() {
                                     borderRadius: '12px',
                                     border: `1px solid ${colors.hint}40`,
                                     minHeight: '80px',
-                                    fontSize: '15px',
                                     display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: '8px',
+                                    alignItems: 'flex-start',
                                     transition: 'all 0.2s'
                                 }}>
-                                    {originalInterests ? (
-                                        <span style={{ color: colors.text }}>{originalInterests}</span>
+                                    {interestTags.length > 0 ? (
+                                        interestTags.map((tag, i) => (
+                                            <span key={i} style={{
+                                                background: colors.bg,
+                                                border: `1px solid ${colors.button}40`,
+                                                color: colors.text,
+                                                padding: '6px 12px',
+                                                borderRadius: '16px',
+                                                fontSize: '14px',
+                                                fontWeight: '500'
+                                            }}>{tag}</span>
+                                        ))
                                     ) : (
-                                        <span style={{ color: colors.hint, fontStyle: 'italic' }}>
-                            {tr('interests.placeholder', lang)}
-                        </span>
+                                        <span style={{ color: colors.hint, fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>
+                                            {tr('interests.placeholder', lang)}
+                                        </span>
                                     )}
-                                    <span style={{
-                                        fontSize: '18px',
-                                        color: colors.hint,
-                                        marginLeft: '12px',
-                                        opacity: 0.6
-                                    }}>✏️</span>
+                                    <span style={{ fontSize: '18px', color: colors.hint, marginLeft: 'auto', opacity: 0.6 }}>✏️</span>
                                 </div>
                             ) : (
                                 <div>
-                    <textarea
-                        value={interests}
-                        onChange={e => setInterests(e.target.value)}
-                        placeholder={tr('interests.input_placeholder', lang)}
-                        autoFocus
-                        style={{
-                            width: '100%',
-                            minHeight: '120px',
-                            padding: '14px',
-                            fontSize: '15px',
-                            border: `2px solid ${colors.button}`,
-                            borderRadius: '12px',
-                            background: colors.bg,
-                            color: colors.text,
-                            boxSizing: 'border-box',
-                            resize: 'vertical',
-                            outline: 'none',
-                            fontFamily: 'inherit'
-                        }}
-                    />
-                                    <p style={{
-                                        fontSize: '13px',
-                                        color: colors.hint,
-                                        marginTop: '8px',
-                                        marginBottom: 0
+                                    <div style={{
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        gap: '8px',
+                                        padding: '12px',
+                                        border: `2px solid ${colors.button}`,
+                                        borderRadius: '12px',
+                                        background: colors.bg,
+                                        minHeight: '120px',
+                                        alignItems: 'flex-start'
                                     }}>
-                                        {tr('interests.hint', lang)}
+                                        {interestTags.map((tag, i) => (
+                                            <div key={i} style={{
+                                                background: `${colors.button}20`,
+                                                color: colors.button,
+                                                padding: '6px 10px',
+                                                borderRadius: '16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                fontSize: '14px',
+                                                fontWeight: '500'
+                                            }}>
+                                                <span>{tag}</span>
+                                                <button onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setInterestTags(interestTags.filter((_, index) => index !== i));
+                                                }} style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: colors.button,
+                                                    cursor: 'pointer',
+                                                    padding: '0',
+                                                    fontSize: '14px',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    alignItems: 'center'
+                                                }}>✕</button>
+                                            </div>
+                                        ))}
+                                        <input
+                                            type="text"
+                                            value={tagInput}
+                                            onChange={e => {
+                                                const value = e.target.value;
+                                                // Intercept any commas from typing, pasting, or dragging text
+                                                if (value.includes(',')) {
+                                                    const newTags = value.split(',').map(t => t.trim()).filter(Boolean);
+                                                    if (newTags.length > 0) {
+                                                        setInterestTags(prev => {
+                                                            const tagsSet = new Set(prev);
+                                                            newTags.forEach(t => tagsSet.add(t));
+                                                            return Array.from(tagsSet);
+                                                        });
+                                                    }
+                                                    setTagInput(''); // Clear input after creating tags
+                                                } else {
+                                                    setTagInput(value);
+                                                }
+                                            }}
+                                            onKeyDown={e => {
+                                                // We only need to handle Enter and Backspace here now, 
+                                                // because onChange automatically catches the commas.
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const newTag = tagInput.trim();
+                                                    if (newTag && !interestTags.includes(newTag)) {
+                                                        setInterestTags([...interestTags, newTag]);
+                                                        setTagInput('');
+                                                    }
+                                                } else if (e.key === 'Backspace' && tagInput === '' && interestTags.length > 0) {
+                                                    setInterestTags(interestTags.slice(0, -1));
+                                                }
+                                            }}
+                                            placeholder={interestTags.length === 0 ? tr('interests.input_placeholder', lang) : "Type and press Enter..."}
+                                            autoFocus
+                                            style={{
+                                                flex: 1,
+                                                minWidth: '140px',
+                                                border: 'none',
+                                                outline: 'none',
+                                                background: 'transparent',
+                                                color: colors.text,
+                                                fontSize: '15px',
+                                                padding: '6px 0',
+                                                fontFamily: 'inherit'
+                                            }}
+                                        />
+                                    </div>
+                                    <p style={{ fontSize: '13px', color: colors.hint, marginTop: '8px', marginBottom: 0 }}>
+                                        {tr('interests.hint', lang) || 'Press Enter or comma to add a new tag'}
                                     </p>
                                 </div>
                             )}
