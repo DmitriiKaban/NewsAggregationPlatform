@@ -8,3 +8,4 @@ redis
 python-dateutil
 telethon
 psycopg2
+prometheus-client

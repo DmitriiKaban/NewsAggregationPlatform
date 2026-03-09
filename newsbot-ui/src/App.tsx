@@ -173,7 +173,7 @@ export default function App() {
     const [displayName, setDisplayName] = useState('there');
     const [languageLoaded, setLanguageLoaded] = useState(false);
 
-    const apiBaseUrl = "https://20ec-212-28-65-233.ngrok-free.app/api";
+    const apiBaseUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api";
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
 
@@ -918,7 +918,7 @@ function TabButton({active, onClick, children, colors}: { active: boolean; onCli
         <button onClick={onClick} style={{
             flex: 1, padding: '10px 4px', background: active ? colors.bg : 'transparent', border: 'none',
             borderRadius: '12px', color: active ? colors.text : colors.hint, fontSize: '14px', fontWeight: '700',
-            cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            cursor: 'pointer', transition: 'all 0.21s cubic-bezier(0.175, 0.885, 0.32, 1.275)', display: 'flex', justifyContent: 'center', alignItems: 'center',
             boxShadow: active ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
         }}>
             {children}

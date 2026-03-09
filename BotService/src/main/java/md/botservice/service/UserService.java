@@ -28,7 +28,6 @@ public class UserService {
     private final KafkaTemplate<@NonNull String, @NonNull Object> kafkaTemplate;
     private final SourceUpdatePublisher sourceUpdatePublisher;
     private static final String TOPIC_USER_INTERESTS = "user.interests.updated";
-    private static final String TOPIC_USER_REACTIONS = "user.post.reactions";
 
     public User findOrRegister(org.telegram.telegrambots.meta.api.objects.User telegramUser) {
         User user = repository.findById(telegramUser.getId())
@@ -142,15 +141,4 @@ public class UserService {
     public List<SourceRecommendationProjection> getRecommendationsForUser(Long userId) {
         return repository.getRecommendationsForUser(userId);
     }
-
-    public void handlePostReaction(Long userId, String postId, ReactionType reactionType) {
-        try {
-            UserReactionEvent event = new UserReactionEvent(userId, postId, reactionType);
-            kafkaTemplate.send(TOPIC_USER_REACTIONS, event);
-            log.info("User {} reacted {} to post {}. Event sent to Kafka.", userId, reactionType, postId);
-        } catch (Exception e) {
-            log.error("Failed to send user reaction to Kafka", e);
-        }
-    }
-
 }

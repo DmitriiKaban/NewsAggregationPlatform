@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PostConstruct;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,6 +25,7 @@ public class KafkaAiProcessor {
     private final JdbcTemplate jdbcTemplate;
     private final KafkaTemplate<@NonNull String, @NonNull String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final Map<String, float[]> topicCentroids = new HashMap<>();
 
     public KafkaAiProcessor(EmbeddingService embeddingService, JdbcTemplate jdbcTemplate,
                             KafkaTemplate<@NonNull String, @NonNull String> kafkaTemplate, ObjectMapper objectMapper) {
@@ -31,6 +33,62 @@ public class KafkaAiProcessor {
         this.jdbcTemplate = jdbcTemplate;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    @PostConstruct
+    public void initializeTopicVectors() {
+        log.info("Initializing semantic topic vectors...");
+
+        Map<String, String> topics = Map.ofEntries(
+                Map.entry("Technology", "Technology, software development, gadgets, cybersecurity, programming, hardware, consumer electronics, smartphones, artificial intelligence, machine learning, ChatGPT, neural networks, LLMs, generative AI, robotics, OpenAI"),
+                Map.entry("Science", "Science, space exploration, NASA, SpaceX, physics, astronomy, research discoveries, biology, chemistry"),
+                Map.entry("Finance", "Finance, global economy, stock market, banking, inflation, interest rates, investment, wealth, wall street, cryptocurrency, bitcoin, ethereum, blockchain, web3, decentralized finance, crypto exchanges, tokens"),
+                Map.entry("Business", "Business, entrepreneurship, startups, corporate earnings, mergers, acquisitions, venture capital, CEOs"),
+                Map.entry("Politics", "Politics, government, elections, parliament, international relations, diplomacy, laws, treaties, geopolitics, campaigns"),
+                Map.entry("Crime & Law", "Justice system, courts, police, investigations, lawsuits, legal rulings, crime, supreme court, prosecution"),
+                Map.entry("Education", "Schools, universities, higher education, student life, academic research, teaching, learning, edtech, tuition"),
+                Map.entry("Health", "Healthcare, medicine, diseases, wellness, hospitals, medical research, pandemics, nutrition, mental health, fitness"),
+                Map.entry("Climate", "Climate change, global warming, renewable energy, ecology, conservation, sustainability, natural disasters, green tech"),
+                Map.entry("Sports", "Sports, football, tennis, olympics, championships, athletes, tournaments, basketball, racing, boxing"),
+                Map.entry("Entertainment", "Movies, music, celebrity news, hollywood, pop culture, television, streaming, art, theater, actors, video games, gaming consoles, esports, game development, PlayStation, Xbox, Nintendo, PC gaming"),
+                Map.entry("Transport", "Cars, electric vehicles, Tesla, aviation, transportation, logistics, railways, public transit, auto industry"),
+                Map.entry("Lifestyle", "Travel, tourism, food, restaurants, fashion, relationships, culture, hobbies, lifestyle, home design")
+        );
+
+        for (Map.Entry<String, String> entry : topics.entrySet()) {
+            float[] vector = embeddingService.encode("passage: " + entry.getValue());
+            topicCentroids.put(entry.getKey(), vector);
+        }
+
+        log.info("Successfully initialized {} topic vectors.", topicCentroids.size());
+    }
+
+    private double calculateCosineSimilarity(float[] vectorA, float[] vectorB) {
+        double dotProduct = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+        for (int i = 0; i < vectorA.length; i++) {
+            dotProduct += vectorA[i] * vectorB[i];
+            normA += Math.pow(vectorA[i], 2);
+            normB += Math.pow(vectorB[i], 2);
+        }
+        if (normA == 0 || normB == 0) return 0.0;
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    private String predictTopic(float[] articleVector) {
+        String bestTopic = "General News";
+        double highestSimilarity = -1.0;
+
+        for (Map.Entry<String, float[]> entry : topicCentroids.entrySet()) {
+            double similarity = calculateCosineSimilarity(articleVector, entry.getValue());
+            if (similarity > highestSimilarity) {
+                highestSimilarity = similarity;
+                bestTopic = entry.getKey();
+            }
+        }
+
+        return highestSimilarity > 0.55 ? bestTopic : "General News";
     }
 
     @KafkaListener(topics = "news.raw", groupId = "ai-news-group")
@@ -42,6 +100,7 @@ public class KafkaAiProcessor {
             String title = article.hasNonNull("title") ? article.get("title").asText() : "Untitled";
             String link = article.hasNonNull("link") ? article.get("link").asText() : null;
             String sourceName = article.hasNonNull("source") ? article.get("source").asText() : null;
+            String topic = article.hasNonNull("topic") ? article.get("topic").asText() : "General";
             String summary = article.hasNonNull("summary") ? article.get("summary").asText() : "";
             String content = article.hasNonNull("content") ? article.get("content").asText() : "";
 
@@ -58,7 +117,7 @@ public class KafkaAiProcessor {
 
             float[] newsVector = embeddingService.encode(textToVectorize);
             String vectorStr = Arrays.toString(newsVector);
-
+            String aiPredictedTopic = predictTopic(newsVector);
             String shortenedTitle = title.substring(0, Math.min(title.length(), 50));
 
             try {
@@ -146,15 +205,15 @@ public class KafkaAiProcessor {
                 double similarity = rs.getDouble("similarity");
 
                 if (isReadAll) {
-                    sendNotification(userId, title, link, 1.0, "read_all", finalArticleDbId);
+                    sendNotification(userId, title, link, 1.0, "read_all", finalArticleDbId, sourceName, aiPredictedTopic);
                     log.debug("[Scenario 1] Read-All triggered for User {}", userId);
                 } else if (strictMode) {
                     if (isSubscribed && similarity > 0.82) {
-                        sendNotification(userId, title, link, similarity, "strict_ai", finalArticleDbId);
+                        sendNotification(userId, title, link, similarity, "strict_ai", finalArticleDbId, sourceName, aiPredictedTopic);
                         log.debug("[Scenario 2] Strict+AI triggered for User {} (Sim: {})", userId, String.format("%.4f", similarity));
                     }
                 } else if (similarity > 0.80) {
-                    sendNotification(userId, title, link, similarity, "normal_ai", finalArticleDbId);
+                    sendNotification(userId, title, link, similarity, "normal_ai", finalArticleDbId, sourceName, aiPredictedTopic);
                     log.debug("[Scenario 3] Normal AI triggered for User {} (Sim: {})", userId, String.format("%.4f", similarity));
                 }
                 return null;
@@ -294,7 +353,7 @@ public class KafkaAiProcessor {
         }
     }
 
-    private void sendNotification(long userId, String title, String url, double score, String reason, long articleId) {
+    private void sendNotification(long userId, String title, String url, double score, String reason, long articleId, String sourceName, String topic) {
         try {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.put("userId", userId);
@@ -302,7 +361,10 @@ public class KafkaAiProcessor {
             payload.put("url", url);
             payload.put("score", score);
             payload.put("reason", reason);
-            payload.put("postId", articleId);
+            payload.put("postId", String.valueOf(articleId));
+            payload.put("sourceName", sourceName);
+            payload.put("topic", topic);
+
             kafkaTemplate.send("news.notification", objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
             log.error("Failed to send notification for user {}: {}", userId, e.getMessage());

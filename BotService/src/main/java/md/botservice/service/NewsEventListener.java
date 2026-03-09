@@ -2,12 +2,15 @@ package md.botservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import md.botservice.events.NewsNotificationEvent;
 import md.botservice.models.User;
 import md.botservice.utils.KeyboardHelper;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
+@Slf4j
 @Service
 public class NewsEventListener {
 
@@ -23,24 +26,16 @@ public class NewsEventListener {
     }
 
     @KafkaListener(topics = "news.notification", groupId = "newsbot-notification-group")
-    public void consumeNotification(String message) {
+    public void consumeNotification(NewsNotificationEvent event) {
         try {
-            JsonNode json = objectMapper.readTree(message);
+            User user = userService.findById(event.userId());
 
-            Long userId = json.get("userId").asLong();
-            String title = json.get("title").asText();
-            String url = json.get("url").asText();
+            InlineKeyboardMarkup reactionKeyboard = keyboardHelper.getPostReactionKeyboard(event.postId(), user.getLanguage());
 
-            String postId = json.has("postId") ? json.get("postId").asText() :
-                    (json.has("id") ? json.get("id").asText() : String.valueOf(url.hashCode()));
-
-            User user = userService.findById(userId);
-            InlineKeyboardMarkup reactionKeyboard = keyboardHelper.getPostReactionKeyboard(postId, user.getLanguage());
-
-            botService.sendNewsAlert(userId, title, url, reactionKeyboard);
+            botService.sendNewsAlert(event, reactionKeyboard);
 
         } catch (Exception e) {
-            System.err.println("Error sending notification: " + e.getMessage());
+            log.error("Error sending notification for user {}: {}", event.userId(), e.getMessage());
         }
     }
 
