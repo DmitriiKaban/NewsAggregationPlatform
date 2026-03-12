@@ -14,6 +14,10 @@ import java.util.List;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    List<User> findByDailySummaryEnabledTrue();
+
+    List<User> findByWeeklySummaryEnabledTrue();
+
     // find users with similar interests (>0.75 cosine similarity)
     // return top tg channels that current user is not subscribed to
     @Query(value = """

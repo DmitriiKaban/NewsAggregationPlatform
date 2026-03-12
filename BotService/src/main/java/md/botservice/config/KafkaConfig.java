@@ -53,4 +53,23 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory);
         return factory;
     }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> stringListenerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        DefaultKafkaConsumerFactory<String, String> consumerFactory =
+                new DefaultKafkaConsumerFactory<>(
+                        props,
+                        new StringDeserializer(),
+                        new StringDeserializer()
+                );
+
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
+        factory.setConsumerFactory(consumerFactory);
+        return factory;
+    }
+
 }

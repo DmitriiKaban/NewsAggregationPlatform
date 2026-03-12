@@ -210,7 +210,7 @@ export default function App() {
     const [dauStats, setDauStats] = useState<DauData[]>([]);
 
 
-    const apiBaseUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api";
+    const apiBaseUrl = "https://1ce8-212-28-65-233.ngrok-free.app/api";
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
 

@@ -73,7 +73,6 @@ public class UserRecommendationService {
             String explicitInterests = (userInterests.isEmpty() || userInterests.getFirst() == null)
                     ? "" : userInterests.getFirst();
 
-            // Get recent LIKE history
             List<String> likedTitles = jdbcTemplate.query(
                     """
                             SELECT a.title FROM user_reactions r
@@ -85,7 +84,6 @@ public class UserRecommendationService {
                     userId
             );
 
-            // Get recent DISLIKE history
             List<String> dislikedTitles = jdbcTemplate.query(
                     """
                             SELECT a.title FROM user_reactions r
@@ -124,9 +122,6 @@ public class UserRecommendationService {
         }
     }
 
-    /**
-     * Helper to format float[] for PostgreSQL's pgvector extension.
-     */
     private String toVectorString(float[] vector) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < vector.length; i++) {
@@ -135,4 +130,5 @@ public class UserRecommendationService {
         }
         return sb.append("]").toString();
     }
+
 }

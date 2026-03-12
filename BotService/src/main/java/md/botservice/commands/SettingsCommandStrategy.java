@@ -35,24 +35,40 @@ public class SettingsCommandStrategy extends AbstractCommandStrategy {
         Language lang = user.getLanguage();
 
         String text = messageService.get("settings.title_desc", lang);
+        InlineKeyboardMarkup markup = buildSettingsKeyboard(user, lang, messageService);
+        sendMessage(sender, command.chatId(), text, markup);
+    }
 
+    public static InlineKeyboardMarkup buildSettingsKeyboard(User user, Language lang, MessageService messageService) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         List<InlineKeyboardButton> row1 = new ArrayList<>();
         InlineKeyboardButton strictModeBtn = new InlineKeyboardButton();
-
-        String statusKey = user.isShowOnlySubscribedSources() ? "settings.status_on" : "settings.status_off";
-        String statusText = messageService.get(statusKey, lang);
-
-        strictModeBtn.setText(messageService.get("settings.strict_filter", lang, statusText));
+        String strictStatus = user.isShowOnlySubscribedSources() ? "✅ " : "❌ ";
+        strictModeBtn.setText(strictStatus + messageService.get("settings.strict_filter", lang));
         strictModeBtn.setCallbackData("TOGGLE_STRICT_MODE");
-
         row1.add(strictModeBtn);
         rows.add(row1);
 
-        markup.setKeyboard(rows);
+        List<InlineKeyboardButton> row2 = new ArrayList<>();
+        InlineKeyboardButton dailyBtn = new InlineKeyboardButton();
+        String dailyStatus = user.isDailySummaryEnabled() ? "✅ " : "❌ ";
+        dailyBtn.setText(dailyStatus + "Daily AI Summary");
+        dailyBtn.setCallbackData("TOGGLE_DAILY_SUMMARY");
+        row2.add(dailyBtn);
+        rows.add(row2);
 
-        sendMessage(sender, command.chatId(), text, markup);
+        List<InlineKeyboardButton> row3 = new ArrayList<>();
+        InlineKeyboardButton weeklyBtn = new InlineKeyboardButton();
+        String weeklyStatus = user.isWeeklySummaryEnabled() ? "✅ " : "❌ ";
+        weeklyBtn.setText(weeklyStatus + "Weekly AI Summary");
+        weeklyBtn.setCallbackData("TOGGLE_WEEKLY_SUMMARY");
+        row3.add(weeklyBtn);
+        rows.add(row3);
+
+        markup.setKeyboard(rows);
+        return markup;
     }
+
 }

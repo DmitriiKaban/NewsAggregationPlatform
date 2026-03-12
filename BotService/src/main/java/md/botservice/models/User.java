@@ -37,6 +37,12 @@ public class User {
     @Column(name = "show_only_subscribed_sources", nullable = false)
     private boolean showOnlySubscribedSources = false;
 
+    @Column(name = "daily_summary_enabled", nullable = false)
+    private boolean dailySummaryEnabled = true;
+
+    @Column(name = "weekly_summary_enabled", nullable = false)
+    private boolean weeklySummaryEnabled = true;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_subscriptions",

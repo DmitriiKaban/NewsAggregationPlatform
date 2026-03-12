@@ -56,28 +56,24 @@ public class CallbackQueryHandler {
                 return;
             }
 
-            // UPDATE INTERESTS
             if ("update_interests".equals(data)) {
                 handleUpdateInterests(user, chatId, sender);
                 answerCallback(callbackQuery, sender);
                 return;
             }
 
-            // KEEP INTERESTS
             if ("keep_interests".equals(data)) {
                 handleKeepInterests(user, chatId, sender);
                 answerCallback(callbackQuery, sender);
                 return;
             }
 
-            // ADD SOURCE
             if ("CMD_ADD_SOURCE".equals(data)) {
                 handleAddSource(user, chatId, sender);
                 answerCallback(callbackQuery, sender);
                 return;
             }
 
-            // REMOVE SOURCE
             if (data.startsWith("REMOVE_SOURCE:")) {
                 String sourceIdStr = data.substring("REMOVE_SOURCE:".length());
                 Long sourceId = Long.parseLong(sourceIdStr);
@@ -86,10 +82,27 @@ public class CallbackQueryHandler {
                 return;
             }
 
-            // TOGGLE STRICT MODE
             if ("TOGGLE_STRICT_MODE".equals(data)) {
-                handleToggleStrictMode(user, chatId, messageId, sender);
+                user.setShowOnlySubscribedSources(!user.isShowOnlySubscribedSources());
+                userService.updateUser(user);
+                updateSettingsMenu(user, chatId, messageId, sender);
                 answerCallback(callbackQuery, sender);
+                return;
+            }
+
+            if ("TOGGLE_DAILY_SUMMARY".equals(data)) {
+                user.setDailySummaryEnabled(!user.isDailySummaryEnabled());
+                userService.updateUser(user);
+                updateSettingsMenu(user, chatId, messageId, sender);
+                answerCallbackWithToast(callbackQuery, sender, "Daily summary preference updated!");
+                return;
+            }
+
+            if ("TOGGLE_WEEKLY_SUMMARY".equals(data)) {
+                user.setWeeklySummaryEnabled(!user.isWeeklySummaryEnabled());
+                userService.updateUser(user);
+                updateSettingsMenu(user, chatId, messageId, sender);
+                answerCallbackWithToast(callbackQuery, sender, "Weekly summary preference updated!");
                 return;
             }
 
@@ -99,7 +112,7 @@ public class CallbackQueryHandler {
     }
 
     private void handleLanguageSelection(String data, User user, long chatId, int messageId, AbsSender sender) {
-        String langCode = data.substring(5).toLowerCase(); // "LANG_EN" -> "en"
+        String langCode = data.substring(5).toLowerCase();
         Language language = Language.fromCode(langCode);
 
         user.setLanguage(language);
@@ -207,12 +220,18 @@ public class CallbackQueryHandler {
         }
     }
 
-    private void handleToggleStrictMode(User user, long chatId, int messageId, AbsSender sender) {
-        boolean newState = !user.isShowOnlySubscribedSources();
-        sourceService.setShowOnlySubscribedSources(user, newState);
+    private void updateSettingsMenu(User user, long chatId, int messageId, AbsSender sender) {
+        EditMessageText editMessage = new EditMessageText();
+        editMessage.setChatId(String.valueOf(chatId));
+        editMessage.setMessageId(messageId);
+        editMessage.setText(messageService.get("settings.title_desc", user.getLanguage()));
+        editMessage.setReplyMarkup(md.botservice.commands.SettingsCommandStrategy.buildSettingsKeyboard(user, user.getLanguage(), messageService));
 
-        // Refresh settings message
-        // (You can implement this to update the settings menu)
+        try {
+            sender.execute(editMessage);
+        } catch (TelegramApiException e) {
+            log.error("Failed to edit settings message", e);
+        }
     }
 
     private void answerCallback(CallbackQuery callbackQuery, AbsSender sender) {

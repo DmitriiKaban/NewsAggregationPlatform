@@ -1,10 +1,12 @@
 package md.botservice;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+@Slf4j
 @SpringBootApplication
 @EnableScheduling
 public class BotServiceApplication {
@@ -17,7 +19,7 @@ public class BotServiceApplication {
 	private static void loadEnvVariables() {
 		try {
 			Dotenv dotenv = Dotenv.configure()
-                    .directory("common")
+                    .directory("../common")
 					.filename(".env")
 					.load();
 
@@ -25,10 +27,9 @@ public class BotServiceApplication {
 				System.setProperty(entry.getKey(), entry.getValue());
 			});
 
-			System.out.println("✅ Successfully loaded .env variables!");
-
+			log.info("Successfully loaded .env variables!");
 		} catch (Exception e) {
-			System.err.println("❌ FAILED to load .env file. Check the path!");
+			log.error("Failed to load .env file. Check the path!");
 			e.printStackTrace();
 			System.exit(1);
 		}
