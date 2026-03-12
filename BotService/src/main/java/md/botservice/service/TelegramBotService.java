@@ -6,6 +6,7 @@ import md.botservice.commands.CommandStrategy;
 import md.botservice.events.NewsNotificationEvent;
 import md.botservice.models.Command;
 import md.botservice.models.User;
+import md.botservice.producers.EventTrackingService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;

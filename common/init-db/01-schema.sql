@@ -79,6 +79,18 @@ CREATE TABLE IF NOT EXISTS user_reactions (
     PRIMARY KEY (user_id, article_id)
     );
 
+CREATE TABLE analytics_events (
+                                  id BIGSERIAL PRIMARY KEY,
+                                  user_id BIGINT NOT NULL,
+                                  event_type VARCHAR(255) NOT NULL,
+                                  reference_id VARCHAR(255),
+                                  metadata JSONB,
+                                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                  CONSTRAINT fk_analytics_event_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_type ON analytics_events (event_type);
+CREATE INDEX IF NOT EXISTS idx_user_time ON analytics_events (user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_user_activity_date ON user_activity(activity_date);
 CREATE INDEX IF NOT EXISTS idx_user_activity_user_date ON user_activity(user_id, activity_date);
 CREATE INDEX IF NOT EXISTS idx_users_language ON users(preferred_language);

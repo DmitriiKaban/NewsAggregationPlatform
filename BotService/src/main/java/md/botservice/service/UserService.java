@@ -3,13 +3,15 @@ package md.botservice.service;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import md.botservice.dto.*;
+import md.botservice.dto.SourceAdoptionProjection;
+import md.botservice.dto.SourceDto;
+import md.botservice.dto.SourceRecommendationProjection;
+import md.botservice.dto.UserProfileResponse;
 import md.botservice.events.UserInterestEvent;
-import md.botservice.events.UserReactionEvent;
 import md.botservice.exceptions.UserNotFoundException;
-import md.botservice.models.ReactionType;
 import md.botservice.models.Source;
 import md.botservice.models.User;
+import md.botservice.producers.SourceUpdatePublisher;
 import md.botservice.repository.UserRepository;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -106,16 +108,6 @@ public class UserService {
         return user;
     }
 
-    public User addReadAllNewsSource(User user, Source source) {
-        user.getReadAllPostsSources().add(source);
-        return repository.save(user);
-    }
-
-    public User removeReadAllNewsSource(User user, Source source) {
-        user.getReadAllPostsSources().remove(source);
-        return repository.save(user);
-    }
-
     public void updateReadAllNewsSource(Long userId, Long sourceId, boolean readAll) {
         User user = findById(userId);
 
@@ -140,5 +132,13 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<SourceRecommendationProjection> getRecommendationsForUser(Long userId) {
         return repository.getRecommendationsForUser(userId);
+    }
+
+    public Double getStrictModeAdoptionPercentage() {
+        return repository.getStrictModeAdoptionPercentage();
+    }
+
+    public List<SourceAdoptionProjection> getTopReadAllSources() {
+        return repository.getTopReadAllSources();
     }
 }

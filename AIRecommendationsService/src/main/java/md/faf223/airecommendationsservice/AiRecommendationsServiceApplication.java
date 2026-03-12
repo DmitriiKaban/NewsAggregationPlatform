@@ -8,14 +8,28 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class AiRecommendationsServiceApplication {
 
     public static void main(String[] args) {
-        Dotenv dotenv = Dotenv.configure()
-                .directory("../common")
-                .ignoreIfMissing()
-                .load();
-
-        dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
-
+        loadEnvVariables();
         SpringApplication.run(AiRecommendationsServiceApplication.class, args);
+    }
+
+    private static void loadEnvVariables() {
+        try {
+            Dotenv dotenv = Dotenv.configure()
+                    .directory("common")
+                    .filename(".env")
+                    .load();
+
+            dotenv.entries().forEach(entry -> {
+                System.setProperty(entry.getKey(), entry.getValue());
+            });
+
+            System.out.println("✅ Successfully loaded .env variables!");
+
+        } catch (Exception e) {
+            System.err.println("❌ FAILED to load .env file. Check the path!");
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
 }

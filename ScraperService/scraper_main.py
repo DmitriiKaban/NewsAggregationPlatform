@@ -1,4 +1,3 @@
-import time
 import json
 import os
 import requests
@@ -30,11 +29,11 @@ API_ID = os.getenv("TELEGRAM_API_ID")
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 SESSION_NAME = "newsbot_session"
 
-DB_NAME = os.getenv("DB_NAME", "newsbot_db")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASS", "password")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("POSTGRES_DB", "newsbot_db")
+DB_USER = os.getenv("POSTGRES_USER", "postgres")
+DB_PASS = os.getenv("POSTGRES_PASSWORD", "password")
+DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
+DB_PORT = os.getenv("POSTGRES_PORT", "5432")
 
 ARTICLES_SENT = Counter('scraper_articles_sent_total', 'Total articles sent to Kafka', ['source'])
 SCRAPE_ERRORS = Counter('scraper_errors_total', 'Total scrape errors', ['source', 'type'])
@@ -66,7 +65,16 @@ def get_sources_from_db():
         cur = conn.cursor()
         cur.execute("SELECT name, url, type FROM sources WHERE is_active = true")
         rows = cur.fetchall()
-        return [{"name": r[0], "url": r[1], "type": "telegram" if "t.me" in r[1] else "rss", "channel": r[1].split("/")[-1] if "t.me" in r[1] else None, "filter_hours": 24} for r in rows]
+        return [
+            {
+                "name": r[0],
+                "url": r[1],
+                "type": "telegram" if "t.me" in r[1] else "rss",
+                "channel": r[1].split("/")[-1] if "t.me" in r[1] else None,
+                "filter_hours": 24
+            }
+            for r in rows
+        ]
     except Exception as e:
         print(f"Database error: {e}")
         return []
@@ -227,7 +235,7 @@ def job():
 schedule.every(10).minutes.do(job)
 
 if __name__ == "__main__":
-    start_http_server(8000)
+    start_http_server(8001)
     job()
     while True:
         schedule.run_pending()

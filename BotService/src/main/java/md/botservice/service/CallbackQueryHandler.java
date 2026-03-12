@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import md.botservice.models.Language;
 import md.botservice.models.ReactionType;
 import md.botservice.models.User;
+import md.botservice.producers.EventTrackingService;
 import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;

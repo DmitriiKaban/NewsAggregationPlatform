@@ -1,10 +1,11 @@
-package md.botservice.service;
+package md.botservice.listeners;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.events.NewsNotificationEvent;
 import md.botservice.models.User;
+import md.botservice.service.TelegramBotService;
+import md.botservice.service.UserService;
 import md.botservice.utils.KeyboardHelper;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,10 @@ public class NewsEventListener {
         this.userService = userService;
     }
 
-    @KafkaListener(topics = "news.notification", groupId = "newsbot-notification-group")
+    @KafkaListener(topics = "news.notification",
+            groupId = "newsbot-notification-group",
+            containerFactory = "notificationListenerFactory"
+    )
     public void consumeNotification(NewsNotificationEvent event) {
         try {
             User user = userService.findById(event.userId());
@@ -38,5 +42,4 @@ public class NewsEventListener {
             log.error("Error sending notification for user {}: {}", event.userId(), e.getMessage());
         }
     }
-
 }

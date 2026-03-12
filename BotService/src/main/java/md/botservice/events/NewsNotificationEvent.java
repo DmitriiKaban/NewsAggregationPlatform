@@ -1,5 +1,8 @@
 package md.botservice.events;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record NewsNotificationEvent(
         Long userId,
         String postId,
