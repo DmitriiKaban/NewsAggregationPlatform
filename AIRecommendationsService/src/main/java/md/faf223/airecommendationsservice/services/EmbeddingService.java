@@ -20,7 +20,7 @@ public class EmbeddingService {
 
     @PostConstruct
     public void init() throws Exception {
-        log.info("Initializing Embedding Model (multilingual-e5-large)... This may take a moment.");
+        log.info("Initializing Embedding Model (multilingual-e5-large)...");
         try {
             Criteria<String, float[]> criteria = Criteria.builder()
                     .setTypes(String.class, float[].class)

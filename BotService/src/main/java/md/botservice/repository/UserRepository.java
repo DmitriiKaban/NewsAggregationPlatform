@@ -1,6 +1,7 @@
 package md.botservice.repository;
 
 import md.botservice.dto.DauProjection;
+import md.botservice.dto.SourceAdoptionProjection;
 import md.botservice.dto.SourceRecommendationProjection;
 import md.botservice.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -46,4 +47,22 @@ public interface UserRepository extends JpaRepository<User, Long> {
         ORDER BY date ASC
         """, nativeQuery = true)
     List<DauProjection> getDailyActiveUsers();
+
+    @Query(value = """
+            SELECT COALESCE(
+                (COUNT(*) FILTER (WHERE show_only_subscribed_sources = true) * 100.0) / NULLIF(COUNT(*), 0),
+            0.0)
+            FROM users
+            """, nativeQuery = true)
+    Double getStrictModeAdoptionPercentage();
+
+    @Query(value = """
+            SELECT s.name AS sourceName, CAST(COUNT(ura.user_id) AS INTEGER) AS userCount
+            FROM sources s
+            JOIN user_read_all_sources ura ON s.id = ura.source_id
+            GROUP BY s.id, s.name
+            ORDER BY userCount DESC
+            LIMIT 10
+            """, nativeQuery = true)
+    List<SourceAdoptionProjection> getTopReadAllSources();
 }

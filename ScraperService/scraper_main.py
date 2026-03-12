@@ -1,4 +1,3 @@
-import time
 import json
 import os
 import requests
@@ -14,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from dateutil import parser as date_parser
 from telethon.sync import TelegramClient
 import concurrent.futures
+from prometheus_client import start_http_server, Counter, Histogram, Gauge
+import time
 
 current_dir = Path(__file__).resolve().parent
 env_path = current_dir.parent / "common" / ".env"
@@ -28,11 +29,17 @@ API_ID = os.getenv("TELEGRAM_API_ID")
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 SESSION_NAME = "newsbot_session"
 
-DB_NAME = os.getenv("DB_NAME", "newsbot_db")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASS", "password")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("POSTGRES_DB", "newsbot_db")
+DB_USER = os.getenv("POSTGRES_USER", "postgres")
+DB_PASS = os.getenv("POSTGRES_PASSWORD", "password")
+DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
+DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+
+ARTICLES_SENT = Counter('scraper_articles_sent_total', 'Total articles sent to Kafka', ['source'])
+SCRAPE_ERRORS = Counter('scraper_errors_total', 'Total scrape errors', ['source', 'type'])
+SCRAPE_DURATION = Histogram('scraper_job_duration_seconds', 'Duration of each scrape job')
+LAST_RUN = Gauge('scraper_last_run_timestamp', 'Unix timestamp of last scrape job')
+ARTICLES_IN_FLIGHT = Gauge('scraper_active_threads', 'Currently active scraper threads')
 
 # Threading Config
 MAX_RSS_THREADS = 5
@@ -58,7 +65,16 @@ def get_sources_from_db():
         cur = conn.cursor()
         cur.execute("SELECT name, url, type FROM sources WHERE is_active = true")
         rows = cur.fetchall()
-        return [{"name": r[0], "url": r[1], "type": "telegram" if "t.me" in r[1] else "rss", "channel": r[1].split("/")[-1] if "t.me" in r[1] else None, "filter_hours": 24} for r in rows]
+        return [
+            {
+                "name": r[0],
+                "url": r[1],
+                "type": "telegram" if "t.me" in r[1] else "rss",
+                "channel": r[1].split("/")[-1] if "t.me" in r[1] else None,
+                "filter_hours": 24
+            }
+            for r in rows
+        ]
     except Exception as e:
         print(f"Database error: {e}")
         return []
@@ -106,6 +122,7 @@ def send_to_kafka(source, title, link, summary, full_text, date_obj):
     }
     producer.send(TOPIC_NAME, value=article)
     mark_processed(link)
+    ARTICLES_SENT.labels(source=source).inc()
     print(f"      ✅ [SENT] {article['title'][:50]}...")
 
 
@@ -145,6 +162,7 @@ def scrape_rss(source):
         return count
     except Exception as e:
         print(f"RSS Error ({source['name']}): {e}")
+        SCRAPE_ERRORS.labels(source=source['name'], type='rss').inc()
         return 0
 
 
@@ -177,7 +195,9 @@ def scrape_telegram(client, source):
     return count
 
 
+@SCRAPE_DURATION.time()
 def job():
+    LAST_RUN.set(time.time())
     start_time = time.time()
     print(f"\nCycle Started: {datetime.now().strftime('%H:%M:%S')}")
 
@@ -215,6 +235,7 @@ def job():
 schedule.every(10).minutes.do(job)
 
 if __name__ == "__main__":
+    start_http_server(8001)
     job()
     while True:
         schedule.run_pending()

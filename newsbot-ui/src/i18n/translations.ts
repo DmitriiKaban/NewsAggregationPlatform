@@ -51,6 +51,20 @@ export const translations: Translations = {
     'offline.title': { en: '⚠️ Offline Mode', ro: '⚠️ Mod Offline', ru: '⚠️ Офлайн Режим' },
     'offline.desc': { en: 'Backend not reachable', ro: 'Backend-ul nu este disponibil', ru: 'Бэкенд недоступен' },
     'offline.retry': { en: 'Retry', ro: 'Reîncearcă', ru: 'Повторить' },
+    'insights.articles_per_session': { en: 'Articles / Session', ro: 'Articole / Sesiune', ru: 'Статей / Сессия' },
+    'insights.topic_entropy': { en: 'Topic Entropy', ro: 'Entropie Subiecte', ru: 'Энтропия Тем' },
+    'insights.you': { en: 'You', ro: 'Tu', ru: 'Вы' },
+    'insights.global': { en: 'Global:', ro: 'Global:', ru: 'Глобально:' },
+
+    'insights.strict_mode_adoption': { en: 'Strict Mode Adoption', ro: 'Adoptare Mod Strict', ru: 'Использование Строгого Режима' },
+    'insights.strict_mode_desc': { en: 'Percentage of total users relying exclusively on their subscribed sources.', ro: 'Procentul utilizatorilor care se bazează exclusiv pe sursele la care sunt abonați.', ru: 'Процент пользователей, полагающихся исключительно на свои подписки.' },
+
+    'insights.most_read_topics': { en: 'Most Read Topics', ro: 'Cele Mai Citite Subiecte', ru: 'Самые Читаемые Темы' },
+
+    'insights.source_sentiment': { en: 'Source Sentiment', ro: 'Sentiment Sursă', ru: 'Отношение к Источнику' },
+    'insights.votes': { en: 'votes', ro: 'voturi', ru: 'голосов' },
+    'interests.current': { en: 'Current Interests', ro: 'Interese Curente', ru: 'Текущие Интересы' },
+    'insights.top_read_all': { en: 'Top "Read-All" Sources', ro: 'Top Surse "Citește-Tot"', ru: 'Топ "Читать-Все" Источников' },
 };
 
 export function tr(

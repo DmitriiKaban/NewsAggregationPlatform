@@ -76,6 +76,40 @@ interface DauData {
     count: number;
 }
 
+interface TopicStat {
+    topic: string;
+    readCount: number;
+}
+
+interface SourceFeedback {
+    sourceName: string;
+    likes: number;
+    dislikes: number;
+}
+
+interface SourceAdoption {
+    sourceName: string;
+    userCount: number;
+}
+
+interface GlobalInsights {
+    dauStats: DauData[];
+    topSources: TopSource[];
+    strictModeAdoptionPercent: number;
+    avgArticlesPerSession: number;
+    avgTopicDiversityEntropy: number;
+    topReadAllSources: SourceAdoption[];
+    topGlobalTopics: TopicStat[];
+    sourceFeedback: SourceFeedback[];
+}
+
+interface UserInsights {
+    totalArticlesRead?: number;
+    clickThroughRate?: number;
+    avgArticlesPerSession: number;
+    avgTopicDiversityEntropy: number;
+}
+
 const showMessage = (message: string) => {
     const tg = window.Telegram?.WebApp;
     if (tg?.showAlert) tg.showAlert(message);
@@ -162,8 +196,8 @@ export default function App() {
     const [sources, setSources] = useState<Source[]>([]);
     const [strictMode, setStrictMode] = useState(false);
     const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-    const [topSources, setTopSources] = useState<TopSource[]>([]);
-    const [dauStats, setDauStats] = useState<DauData[]>([]);
+    const [globalInsights, setGlobalInsights] = useState<GlobalInsights | null>(null);
+    const [userInsights, setUserInsights] = useState<UserInsights | null>(null);
     const [activeTab, setActiveTab] = useState<'interests' | 'sources' | 'insights'>('interests');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -172,8 +206,11 @@ export default function App() {
     const [user, setUser] = useState<{ id?: number; first_name?: string; username?: string } | null>(null);
     const [displayName, setDisplayName] = useState('there');
     const [languageLoaded, setLanguageLoaded] = useState(false);
+    const [topSources, setTopSources] = useState<TopSource[]>([]);
+    const [dauStats, setDauStats] = useState<DauData[]>([]);
 
-    const apiBaseUrl = "https://20ec-212-28-65-233.ngrok-free.app/api";
+
+    const apiBaseUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api";
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
 
@@ -246,12 +283,10 @@ export default function App() {
         Promise.all([
             fetch(`${apiBaseUrl}/users/${user.id}/profile`, fetchOptions).then(r => r.json()),
             fetch(`${apiBaseUrl}/analytics/users/${user.id}/recommendations`, fetchOptions).then(r => r.json()).catch(() => []),
-            fetch(`${apiBaseUrl}/analytics/insights`, fetchOptions).then(r => r.json()).catch(() => ({
-                topSources: [],
-                dauStats: []
-            })),
+            fetch(`${apiBaseUrl}/analytics/global-dashboard`, fetchOptions).then(r => r.json()).catch(() => null),
+            fetch(`${apiBaseUrl}/analytics/users/${user.id}/dashboard`, fetchOptions).then(r => r.json()).catch(() => null),
         ])
-            .then(([profileData, recommendationsData, insightsData]) => {
+            .then(([profileData, recommendationsData, globalData, userData]) => {
                 const backendLang = profileData.language?.toLowerCase();
 
                 if (backendLang && ['en', 'ro', 'ru'].includes(backendLang)) {
@@ -283,9 +318,16 @@ export default function App() {
                     );
                 }
 
+                if (globalData) {
+                    setGlobalInsights(globalData);
+                    setDauStats(globalData.dauStats || []);
+                    setTopSources(globalData.topSources || []);
+                }
+                if (userData) {
+                    setUserInsights(userData);
+                }
+
                 setRecommendations(recommendationsData);
-                setDauStats(insightsData.dauStats || []);
-                setTopSources(insightsData.topSources || []);
                 setLoading(false);
                 setError(null);
                 setBackendReachable(true);
@@ -825,19 +867,20 @@ export default function App() {
                     </div>
                 )}
 
-                {activeTab === 'insights' && (
-                    <div style={{animation: 'fadeIn 0.3s ease-in-out'}}>
-                        <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '20px' }}>{tr('insights.title', lang)}</h3>
+                {activeTab === 'insights' && globalInsights && (
+                    <div style={{animation: 'fadeIn 0.3s ease-in-out', display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                        <h3 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>{tr('insights.title', lang) || 'Analytics & Insights'}</h3>
 
+                        {/* --- RESTORED DAU CHART --- */}
                         <div style={{
-                            background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', marginBottom: '24px', border: `1px solid ${colors.hint}20`
+                            background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', border: `1px solid ${colors.hint}20`
                         }}>
                             <h4 style={{margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px'}}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.chartBar} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
                                 {tr('insights.dau_title', lang)}
                             </h4>
                             <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: colors.hint, fontWeight: '500' }}>{tr('insights.dau_desc', lang)}</p>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '160px', paddingTop: '10px' }}>
                                 {dauStats.length > 0 ? dauStats.map((d, index) => {
                                     const heightPercent = Math.max((d.count / maxDau) * 100, 8);
@@ -857,6 +900,7 @@ export default function App() {
                             </div>
                         </div>
 
+                        {/* --- RESTORED TOP SOURCES --- */}
                         <div style={{
                             background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', border: `1px solid ${colors.hint}20`
                         }}>
@@ -881,7 +925,6 @@ export default function App() {
                                                     </span>
                                                     <a href={getValidUrl(source.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: colors.link, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontWeight: '600' }}>
                                                         {getHandle(source.url)}
-                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                                                     </a>
                                                 </div>
                                             </div>
@@ -899,6 +942,124 @@ export default function App() {
                             ) : (
                                 <div style={{ textAlign: 'center', color: colors.hint, fontWeight: '500' }}>{tr('insights.no_sources', lang)}</div>
                             )}
+                        </div>
+
+                        {/* 1. COMPARISON METRICS (User vs Global) */}
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <div style={{ flex: 1, background: colors.secondaryBg, padding: '16px', borderRadius: '20px', border: `1px solid ${colors.hint}20` }}>
+                                <div style={{ fontSize: '12px', color: colors.hint, fontWeight: '700', textTransform: 'uppercase', marginBottom: '8px' }}>{tr('insights.articles_per_session', lang)}</div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: '800', color: colors.text }}>
+                        {userInsights?.avgArticlesPerSession?.toFixed(1) || '0.0'}
+                    </span>
+                                    <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '500' }}>{tr('insights.you', lang)}</span>
+                                </div>
+                                <div style={{ fontSize: '13px', color: colors.button, marginTop: '4px', fontWeight: '600' }}>
+                                    {tr('insights.global', lang)} {globalInsights.avgArticlesPerSession?.toFixed(1) || '0.0'}
+                                </div>
+                            </div>
+
+                            <div style={{ flex: 1, background: colors.secondaryBg, padding: '16px', borderRadius: '20px', border: `1px solid ${colors.hint}20` }}>
+                                <div style={{ fontSize: '12px', color: colors.hint, fontWeight: '700', textTransform: 'uppercase', marginBottom: '8px' }}>{tr('insights.topic_entropy', lang)}</div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: '800', color: colors.text }}>
+                        {userInsights?.avgTopicDiversityEntropy?.toFixed(2) || '0.00'}
+                    </span>
+                                    <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '500' }}>{tr('insights.you', lang)}</span>
+                                </div>
+                                <div style={{ fontSize: '13px', color: colors.chartBar, marginTop: '4px', fontWeight: '600' }}>
+                                    {tr('insights.global', lang)} {globalInsights.avgTopicDiversityEntropy?.toFixed(2) || '0.00'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. STRICT MODE ADOPTION */}
+                        <div style={{ background: colors.secondaryBg, padding: '20px', borderRadius: '24px', border: `1px solid ${colors.hint}20`, display: 'flex', alignItems: 'center', gap: '20px' }}>
+                            <div style={{ position: 'relative', width: '60px', height: '60px', flexShrink: 0 }}>
+                                <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%' }}>
+                                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={`${colors.danger}20`} strokeWidth="4" />
+                                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={colors.danger} strokeWidth="4" strokeDasharray={`${globalInsights.strictModeAdoptionPercent || 0}, 100`} style={{ transition: 'stroke-dasharray 1s ease-out' }} />
+                                </svg>
+                                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '800', color: colors.text }}>
+                                    {Math.round(globalInsights.strictModeAdoptionPercent || 0)}%
+                                </div>
+                            </div>
+                            <div>
+                                <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: '700' }}>{tr('insights.strict_mode_adoption', lang)}</h4>
+                                <p style={{ margin: 0, fontSize: '13px', color: colors.hint, lineHeight: 1.4 }}>{tr('insights.strict_mode_desc', lang)}</p>
+                            </div>
+                        </div>
+
+                        {/* 3. TOP GLOBAL TOPICS */}
+                        <div style={{ background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', border: `1px solid ${colors.hint}20` }}>
+                            <h4 style={{margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                                {tr('insights.most_read_topics', lang)}
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {globalInsights.topGlobalTopics?.map((topic, i) => {
+                                    const maxReads = globalInsights.topGlobalTopics[0]?.readCount || 1;
+                                    const widthPct = Math.max((topic.readCount / maxReads) * 100, 5);
+                                    return (
+                                        <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600' }}>
+                                                <span>{topic.topic}</span>
+                                                <span style={{ color: colors.hint }}>{topic.readCount}</span>
+                                            </div>
+                                            <div style={{ width: '100%', height: '8px', background: `${colors.hint}20`, borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${widthPct}%`, height: '100%', background: colors.button, borderRadius: '4px', transition: 'width 1s ease-out' }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* 4. SOURCE FEEDBACK */}
+                        <div style={{ background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', border: `1px solid ${colors.hint}20` }}>
+                            <h4 style={{margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.success} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                                {tr('insights.source_sentiment', lang)}
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                {globalInsights.sourceFeedback?.slice(0, 5).map((feedback, i) => {
+                                    const total = feedback.likes + feedback.dislikes;
+                                    const likePct = total > 0 ? (feedback.likes / total) * 100 : 50;
+                                    return (
+                                        <div key={i}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
+                                                <span>{feedback.sourceName}</span>
+                                                <span style={{ fontSize: '11px', color: colors.hint }}>{total} {tr('insights.votes', lang)}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', width: '100%', height: '8px', borderRadius: '4px', overflow: 'hidden', gap: '2px' }}>
+                                                <div style={{ width: `${likePct}%`, height: '100%', background: colors.success, transition: 'width 1s ease-out' }} />
+                                                <div style={{ width: `${100 - likePct}%`, height: '100%', background: colors.danger, transition: 'width 1s ease-out' }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* 5. TOP READ-ALL SOURCES */}
+                        <div style={{ background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', border: `1px solid ${colors.hint}20` }}>
+                            <h4 style={{margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.chartBar} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                {tr('insights.top_read_all', lang)}
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {globalInsights.topReadAllSources?.map((source, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div style={{ width: '20px', fontSize: '12px', fontWeight: '800', color: colors.hint }}>#{i + 1}</div>
+                                            <span style={{ fontSize: '14px', fontWeight: '600', color: colors.text }}>{source.sourceName}</span>
+                                        </div>
+                                        <span style={{ fontSize: '13px', fontWeight: '800', color: colors.chartBar }}>
+                            {source.userCount} <span style={{ fontSize: '11px', fontWeight: '600', color: colors.hint, textTransform: 'uppercase' }}>{tr('insights.users', lang)}</span>
+                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -918,7 +1079,7 @@ function TabButton({active, onClick, children, colors}: { active: boolean; onCli
         <button onClick={onClick} style={{
             flex: 1, padding: '10px 4px', background: active ? colors.bg : 'transparent', border: 'none',
             borderRadius: '12px', color: active ? colors.text : colors.hint, fontSize: '14px', fontWeight: '700',
-            cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            cursor: 'pointer', transition: 'all 0.21s cubic-bezier(0.175, 0.885, 0.32, 1.275)', display: 'flex', justifyContent: 'center', alignItems: 'center',
             boxShadow: active ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
         }}>
             {children}

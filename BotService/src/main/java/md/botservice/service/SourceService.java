@@ -8,13 +8,13 @@ import md.botservice.exceptions.TelegramChannelNotFoundException;
 import md.botservice.models.Source;
 import md.botservice.models.SourceType;
 import md.botservice.models.User;
+import md.botservice.producers.SourceUpdatePublisher;
 import md.botservice.repository.SourceRepository;
 import md.botservice.utils.FormatUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
 

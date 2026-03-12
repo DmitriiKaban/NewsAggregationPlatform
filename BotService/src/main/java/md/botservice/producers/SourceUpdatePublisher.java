@@ -1,4 +1,4 @@
-package md.botservice.service;
+package md.botservice.producers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

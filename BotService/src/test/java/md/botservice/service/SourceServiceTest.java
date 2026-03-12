@@ -5,6 +5,7 @@ import md.botservice.exceptions.SourceNotFoundException;
 import md.botservice.models.Source;
 import md.botservice.models.SourceType;
 import md.botservice.models.User;
+import md.botservice.producers.SourceUpdatePublisher;
 import md.botservice.repository.SourceRepository;
 import md.botservice.utils.FormatUtils;
 import org.junit.jupiter.api.BeforeEach;

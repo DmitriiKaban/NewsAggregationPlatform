@@ -3,8 +3,10 @@ package md.botservice.service;
 import lombok.extern.slf4j.Slf4j;
 import md.botservice.commands.CommandEffectFactory;
 import md.botservice.commands.CommandStrategy;
+import md.botservice.events.NewsNotificationEvent;
 import md.botservice.models.Command;
 import md.botservice.models.User;
+import md.botservice.producers.EventTrackingService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -18,6 +20,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 public class TelegramBotService extends TelegramLongPollingBot {
 
     private final UserService userService;
+    private final EventTrackingService eventTrackingService;
     private final UserActivityService activityService;
     private final CommandEffectFactory commandFactory;
     private final WebAppDataHandler webAppDataHandler;
@@ -27,7 +30,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final String botUsername;
 
     public TelegramBotService(
-            UserService userService,
+            UserService userService, EventTrackingService eventTrackingService,
             CommandEffectFactory commandFactory,
             WebAppDataHandler webAppDataHandler,
             CallbackQueryHandler callbackQueryHandler,
@@ -38,6 +41,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
     ) {
         super(botToken);
         this.userService = userService;
+        this.eventTrackingService = eventTrackingService;
         this.commandFactory = commandFactory;
         this.webAppDataHandler = webAppDataHandler;
         this.callbackQueryHandler = callbackQueryHandler;
@@ -120,13 +124,14 @@ public class TelegramBotService extends TelegramLongPollingBot {
         }
     }
 
-    public void sendNewsAlert(Long chatId, String title, String url, InlineKeyboardMarkup reactionKeyboard) {
+    public void sendNewsAlert(NewsNotificationEvent event, InlineKeyboardMarkup reactionKeyboard) {
         SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
+        message.setChatId(String.valueOf(event.userId()));
         message.setParseMode("HTML");
 
-        String cleanTitle = escapeHtml(title);
-        String text = cleanTitle + "\n\n<a href=\"" + url + "\">Read More</a>";
+        // Build the message using the event data
+        String cleanTitle = escapeHtml(event.title());
+        String text = cleanTitle + "\n\n<a href=\"" + event.url() + "\">Read More</a>";
         message.setText(text);
 
         if (reactionKeyboard != null) {
@@ -135,8 +140,16 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         try {
             execute(message);
+
+            eventTrackingService.trackArticleShown(
+                    event.userId(),
+                    event.postId(),
+                    event.sourceName(),
+                    event.topic()
+            );
+
         } catch (TelegramApiException e) {
-            log.error("Failed to send news alert", e);
+            log.error("Failed to send news alert to user {}", event.userId(), e);
         }
     }
 
