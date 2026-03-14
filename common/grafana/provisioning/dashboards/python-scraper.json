@@ -1,0 +1,80 @@
+{
+  "title": "Newsbot Scraper Metrics",
+  "tags": ["python", "scraper"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Articles Sent",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [ { "expr": "sum(scraper_articles_sent_total)", "legendFormat": "Articles" } ],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null } ] } } }
+    },
+    {
+      "type": "stat",
+      "title": "New Articles Scraped (Last Cycle)",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "scraper_items_last_run",
+          "legendFormat": "Articles",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "light-blue", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Scraper Errors",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [ { "expr": "sum(scraper_errors_total) or vector(0)", "legendFormat": "Errors" } ],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } }
+    },
+    {
+      "type": "stat",
+      "title": "Seconds Since Last Run",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [ { "expr": "time() - scraper_last_run_timestamp", "legendFormat": "Seconds" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 600 }, { "color": "red", "value": 900 } ] } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Articles Sent by Source",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [ { "expr": "sum by (source) (scraper_articles_sent_total)", "legendFormat": "{{source}}" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Job Duration (Average)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [ { "expr": "rate(scraper_job_duration_seconds_sum[10m]) / rate(scraper_job_duration_seconds_count[10m])", "legendFormat": "Duration (s)" } ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    }
+  ]
+}

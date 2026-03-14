@@ -218,7 +218,7 @@ export default function App() {
     const [dauStats, setDauStats] = useState<DauData[]>([]);
     const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
 
-    const apiBaseUrl = "https://9870-212-28-65-233.ngrok-free.app/api";
+    const apiBaseUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api";
     
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
@@ -263,7 +263,7 @@ export default function App() {
                     }
                 }
                 setUser(null);
-                setError("Could not identify user from Telegram");
+                setError("Could not identify user from Telegram(");
                 setLoading(false);
             } catch {
                 setUser(null);
