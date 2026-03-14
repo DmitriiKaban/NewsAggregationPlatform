@@ -43,26 +43,29 @@ public class SettingsCommandStrategy extends AbstractCommandStrategy {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
+        String statusOn = messageService.get("settings.status_on", lang);
+        String statusOff = messageService.get("settings.status_off", lang);
+
         List<InlineKeyboardButton> row1 = new ArrayList<>();
         InlineKeyboardButton strictModeBtn = new InlineKeyboardButton();
-        String strictStatus = user.isShowOnlySubscribedSources() ? "✅ " : "❌ ";
-        strictModeBtn.setText(strictStatus + messageService.get("settings.strict_filter", lang));
+        String strictStatus = user.isShowOnlySubscribedSources() ? statusOn : statusOff;
+        strictModeBtn.setText(messageService.get("settings.strict_filter", lang, strictStatus));
         strictModeBtn.setCallbackData("TOGGLE_STRICT_MODE");
         row1.add(strictModeBtn);
         rows.add(row1);
 
         List<InlineKeyboardButton> row2 = new ArrayList<>();
         InlineKeyboardButton dailyBtn = new InlineKeyboardButton();
-        String dailyStatus = user.isDailySummaryEnabled() ? "✅ " : "❌ ";
-        dailyBtn.setText(dailyStatus + "Daily AI Summary");
+        String dailyStatus = user.isDailySummaryEnabled() ? statusOn : statusOff;
+        dailyBtn.setText(messageService.get("settings.daily_summary", lang, dailyStatus));
         dailyBtn.setCallbackData("TOGGLE_DAILY_SUMMARY");
         row2.add(dailyBtn);
         rows.add(row2);
 
         List<InlineKeyboardButton> row3 = new ArrayList<>();
         InlineKeyboardButton weeklyBtn = new InlineKeyboardButton();
-        String weeklyStatus = user.isWeeklySummaryEnabled() ? "✅ " : "❌ ";
-        weeklyBtn.setText(weeklyStatus + "Weekly AI Summary");
+        String weeklyStatus = user.isWeeklySummaryEnabled() ? statusOn : statusOff;
+        weeklyBtn.setText(messageService.get("settings.weekly_summary", lang, weeklyStatus));
         weeklyBtn.setCallbackData("TOGGLE_WEEKLY_SUMMARY");
         row3.add(weeklyBtn);
         rows.add(row3);

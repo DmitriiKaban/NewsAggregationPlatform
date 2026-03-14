@@ -47,9 +47,11 @@ public class SummaryEventListener {
                 sb.append("🔹 <b>").append(article.title()).append("</b> (<i>").append(article.sourceName()).append("</i>)\n");
 
                 if (article.summary() != null && !article.summary().isBlank() && !"null".equals(article.summary())) {
-                    String text = article.summary().length() > 150 ? article.summary().substring(0, 150) + "..." : article.summary();
+                    String cleanSummary = article.summary().replaceAll("<[^>]*>", "").trim();
+                    String text = cleanSummary.length() > 150 ? cleanSummary.substring(0, 150) + "..." : cleanSummary;
                     sb.append(text).append("\n");
                 }
+
                 sb.append("<a href='").append(article.url()).append("'>").append(messageService.get("summary.read_more", lang)).append("</a>\n\n");
             }
 
@@ -59,6 +61,7 @@ public class SummaryEventListener {
             message.setChatId(String.valueOf(user.getId()));
             message.setText(sb.toString());
             message.setParseMode("HTML");
+            message.setDisableWebPagePreview(true);
 
             telegramBotService.execute(message);
             log.info("Successfully sent localized AI summary to user {}", user.getId());
