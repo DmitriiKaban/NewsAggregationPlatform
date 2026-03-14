@@ -17,6 +17,7 @@ from prometheus_client import start_http_server, Counter, Histogram, Gauge
 import time
 
 current_dir = Path(__file__).resolve().parent
+print(current_dir)
 env_path = current_dir.parent / "common" / ".env"
 load_dotenv(dotenv_path=env_path)
 
@@ -33,13 +34,15 @@ DB_NAME = os.getenv("POSTGRES_DB", "newsbot_db")
 DB_USER = os.getenv("POSTGRES_USER", "postgres")
 DB_PASS = os.getenv("POSTGRES_PASSWORD", "password")
 DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+DB_PORT = os.getenv("POSTGRES_PORT", "5433")
 
 ARTICLES_SENT = Counter('scraper_articles_sent_total', 'Total articles sent to Kafka', ['source'])
 SCRAPE_ERRORS = Counter('scraper_errors_total', 'Total scrape errors', ['source', 'type'])
 SCRAPE_DURATION = Histogram('scraper_job_duration_seconds', 'Duration of each scrape job')
 LAST_RUN = Gauge('scraper_last_run_timestamp', 'Unix timestamp of last scrape job')
 ARTICLES_IN_FLIGHT = Gauge('scraper_active_threads', 'Currently active scraper threads')
+SCRAPE_COUNT = Counter('scraper_runs_total', 'Total number of times the scraper ran')
+ITEMS_SCRAPED = Gauge('scraper_items_last_run', 'Number of items found in the last run')
 
 # Threading Config
 MAX_RSS_THREADS = 5
@@ -229,6 +232,9 @@ def job():
 
     elapsed = time.time() - start_time
     total = total_rss + total_tg
+
+    SCRAPE_COUNT.inc()
+    ITEMS_SCRAPED.set(total)
     print(f"Sent {total} articles in {elapsed:.2f} seconds.")
 
 
