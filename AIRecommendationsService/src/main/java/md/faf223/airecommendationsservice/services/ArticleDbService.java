@@ -4,9 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,4 +66,20 @@ public class ArticleDbService {
             }
         });
     }
+
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void deleteOldArticles() {
+        try {
+            log.info("Starting cleanup of articles older than 8 days...");
+
+            int deletedCount = jdbcTemplate.update(
+                    "DELETE FROM articles WHERE processed_at < NOW() - INTERVAL '8 days'"
+            );
+
+            log.info("Successfully deleted {} old articles.", deletedCount);
+        } catch (Exception e) {
+            log.error("Failed to delete old articles: {}", e.getMessage(), e);
+        }
+    }
+
 }
