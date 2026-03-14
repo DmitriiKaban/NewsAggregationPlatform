@@ -8,6 +8,8 @@ public record UserProfileResponse(
         String interests,
         List<SourceDto> sources,
         boolean strictSourceFiltering,
-        String language
+        String language,
+        boolean dailySummaryEnabled,
+        boolean weeklySummaryEnabled
 ) {
 }

@@ -45,11 +45,14 @@ class UserApiControllerTest {
         List<SourceDto> sourceDtoList = List.of(
                 SourceDto.of(1L, "source1", "url1", false),
                 SourceDto.of(2L, "source2", "url2", true)
-                );
+        );
         boolean strictSourceFiltering = false;
         String language = "en";
+        boolean dailySummaryEnabled = true;
+        boolean weeklySummaryEnabled = false;
+
         UserProfileResponse userProfileResponse = new UserProfileResponse(
-                firstName, lastName, interests, sourceDtoList, strictSourceFiltering, language
+                firstName, lastName, interests, sourceDtoList, strictSourceFiltering, language, dailySummaryEnabled, weeklySummaryEnabled
         );
         when(userService.getUserProfile(userId)).thenReturn(userProfileResponse);
 
@@ -70,7 +73,9 @@ class UserApiControllerTest {
                 .andExpect(jsonPath("$.sources[1].url").value("@url2"))
                 .andExpect(jsonPath("$.sources[1].readAllNewsSource").value(true))
                 .andExpect(jsonPath("$.strictSourceFiltering").value(false))
-                .andExpect(jsonPath("$.language").value("en"));
+                .andExpect(jsonPath("$.language").value("en"))
+                .andExpect(jsonPath("$.dailySummaryEnabled").value(true))
+                .andExpect(jsonPath("$.weeklySummaryEnabled").value(false));
     }
 
     @Test
@@ -111,4 +116,5 @@ class UserApiControllerTest {
     @Test
     void health() {
     }
+
 }

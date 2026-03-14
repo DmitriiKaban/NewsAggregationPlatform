@@ -84,6 +84,48 @@ public class UserApiController {
         }
     }
 
+    @PutMapping("/{userId}/settings/daily-summary")
+    public ResponseEntity<Void> toggleDailySummary(
+            @PathVariable Long userId,
+            @RequestParam boolean enabled
+    ) {
+        try {
+            userService.updateDailySummary(userId, enabled);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error updating daily summary for user {}: {}", userId, e.getMessage());
+            throw e;
+        }
+    }
+
+    @PutMapping("/{userId}/settings/weekly-summary")
+    public ResponseEntity<Void> toggleWeeklySummary(
+            @PathVariable Long userId,
+            @RequestParam boolean enabled
+    ) {
+        try {
+            userService.updateWeeklySummary(userId, enabled);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error updating weekly summary for user {}: {}", userId, e.getMessage());
+            throw e;
+        }
+    }
+
+    @PutMapping("/{userId}/settings/language")
+    public ResponseEntity<Void> updateLanguage(
+            @PathVariable Long userId,
+            @RequestParam String lang
+    ) {
+        try {
+            userService.updateLanguage(userId, lang);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error updating language for user {}: {}", userId, e.getMessage());
+            throw e;
+        }
+    }
+
     @PutMapping("/{userId}/sources/{sourceId}/read-all")
     public ResponseEntity<Void> toggleSourceReadAll(
             @PathVariable Long userId,
@@ -104,4 +146,5 @@ public class UserApiController {
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("OK - UserApiController is running");
     }
+
 }

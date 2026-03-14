@@ -9,6 +9,7 @@ import md.botservice.dto.SourceRecommendationProjection;
 import md.botservice.dto.UserProfileResponse;
 import md.botservice.events.UserInterestEvent;
 import md.botservice.exceptions.UserNotFoundException;
+import md.botservice.models.Language;
 import md.botservice.models.Source;
 import md.botservice.models.User;
 import md.botservice.producers.SourceUpdatePublisher;
@@ -68,7 +69,9 @@ public class UserService {
                 user.getInterestsRaw(),
                 sourceDtos,
                 user.isShowOnlySubscribedSources(),
-                user.getPreferredLanguage()
+                user.getPreferredLanguage(),
+                user.isDailySummaryEnabled(),
+                user.isWeeklySummaryEnabled()
         );
     }
 
@@ -108,6 +111,35 @@ public class UserService {
         return user;
     }
 
+    public User updateDailySummary(Long userId, boolean enabled) {
+        User user = findById(userId);
+        user.setDailySummaryEnabled(enabled);
+        log.info("User {} set daily summary to: {}", userId, enabled);
+        return repository.save(user);
+    }
+
+    public User updateWeeklySummary(Long userId, boolean enabled) {
+        User user = findById(userId);
+        user.setWeeklySummaryEnabled(enabled);
+        log.info("User {} set weekly summary to: {}", userId, enabled);
+        return repository.save(user);
+    }
+
+    public User updateLanguage(Long userId, String langCode) {
+        User user = findById(userId);
+
+        Language language = Language.fromCode(langCode.toLowerCase());
+
+        if (language != null) {
+            user.setPreferredLanguage(language.getCode());
+            log.info("User {} set language to: {}", userId, language.getCode());
+        } else {
+            log.warn("Invalid language code passed: {}", langCode);
+        }
+
+        return repository.save(user);
+    }
+
     public void updateReadAllNewsSource(Long userId, Long sourceId, boolean readAll) {
         User user = findById(userId);
 
@@ -141,4 +173,5 @@ public class UserService {
     public List<SourceAdoptionProjection> getTopReadAllSources() {
         return repository.getTopReadAllSources();
     }
+
 }
