@@ -43,6 +43,10 @@ public class User {
     @Column(name = "weekly_summary_enabled", nullable = false)
     private boolean weeklySummaryEnabled = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 20, nullable = false)
+    private UserRole role = UserRole.USER;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_subscriptions",

@@ -39,7 +39,7 @@ public class KeyboardHelper {
         return keyboardMarkup;
     }
 
-    public InlineKeyboardMarkup getPostReactionKeyboard(String postId, Language lang) {
+    public InlineKeyboardMarkup getPostReactionKeyboard(String postId, Long sourceId, Language lang) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
@@ -53,13 +53,43 @@ public class KeyboardHelper {
         dislikeBtn.setText(messageService.get("button.dislike", lang));
         dislikeBtn.setCallbackData("DISLIKE_POST:" + postId);
 
+        InlineKeyboardButton reportBtn = new InlineKeyboardButton();
+        reportBtn.setText(messageService.get("button.report", lang));
+
+        String sourceIdStr = sourceId != null ? String.valueOf(sourceId) : "null";
+        reportBtn.setCallbackData("REPORT_POST:" + postId + ":" + sourceIdStr);
+
         reactionRow.add(likeBtn);
         reactionRow.add(dislikeBtn);
+        reactionRow.add(reportBtn);
 
         rows.add(reactionRow);
         markup.setKeyboard(rows);
 
         return markup;
+    }
+
+    public InlineKeyboardMarkup getReportReasonKeyboard(String postId, String sourceId, Language lang) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        String prefix = "SUBMIT_REPORT:" + postId + ":" + sourceId + ":";
+
+        rows.add(List.of(createInlineButton(messageService.get("report.reason.spam", lang), prefix + "SPAM")));
+        rows.add(List.of(createInlineButton(messageService.get("report.reason.misleading", lang), prefix + "MISLEADING")));
+        rows.add(List.of(createInlineButton(messageService.get("report.reason.hate_speech", lang), prefix + "HATE_SPEECH")));
+        rows.add(List.of(createInlineButton(messageService.get("report.reason.other", lang), prefix + "OTHER")));
+        rows.add(List.of(createInlineButton(messageService.get("button.cancel", lang), "CANCEL_REPORT:" + postId + ":" + sourceId)));
+
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardButton createInlineButton(String text, String callbackData) {
+        InlineKeyboardButton btn = new InlineKeyboardButton();
+        btn.setText(text);
+        btn.setCallbackData(callbackData);
+        return btn;
     }
 
 }

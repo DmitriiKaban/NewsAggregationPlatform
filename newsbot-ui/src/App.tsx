@@ -1,5 +1,7 @@
 import {useEffect, useState} from 'react';
 import {tr, type Language} from './i18n/translations.ts';
+import { ReportModal } from './components/ReportModal';
+import { ModeratorDashboard } from './pages/ModeratorDashboard';
 
 declare global {
     interface Window {
@@ -206,7 +208,12 @@ export default function App() {
     const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
     const [globalInsights, setGlobalInsights] = useState<GlobalInsights | null>(null);
     const [userInsights, setUserInsights] = useState<UserInsights | null>(null);
-    const [activeTab, setActiveTab] = useState<'interests' | 'sources' | 'insights' | 'settings'>('interests');
+    
+    const [activeTab, setActiveTab] = useState<'interests' | 'sources' | 'insights' | 'settings' | 'moderation'>('interests');
+    const [userRole, setUserRole] = useState<'USER' | 'MODERATOR' | 'ADMIN'>('USER');
+    
+    const [reportModalState, setReportModalState] = useState<{isOpen: boolean, sourceId?: number, articleId?: number}>({ isOpen: false });
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [backendReachable, setBackendReachable] = useState(true);
@@ -218,7 +225,7 @@ export default function App() {
     const [dauStats, setDauStats] = useState<DauData[]>([]);
     const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
 
-    const apiBaseUrl = "https://donny-subevergreen-agreeably.ngrok-free.dev/api";
+    const apiBaseUrl = "https://247c-212-28-65-233.ngrok-free.app/api";
     
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
@@ -304,6 +311,8 @@ export default function App() {
                 setLanguageLoaded(true);
 
                 if (profileData.firstName?.trim()) setDisplayName(profileData.firstName);
+                
+                if (profileData.role) setUserRole(profileData.role);
 
                 const interestsStr = Array.isArray(profileData.interests)
                     ? profileData.interests.join(', ')
@@ -615,6 +624,16 @@ export default function App() {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             paddingBottom: '40px'
         }}>
+            <ReportModal 
+                isOpen={reportModalState.isOpen}
+                onClose={() => setReportModalState({ isOpen: false })}
+                sourceId={reportModalState.sourceId}
+                articleId={reportModalState.articleId}
+                currentUserId={user.id!}
+                apiBaseUrl={apiBaseUrl}
+                colors={colors}
+            />
+
             <div style={{padding: '24px 20px 20px 20px'}}>
                 <h1 style={{fontSize: '28px', fontWeight: '800', margin: '0 0 6px 0', color: colors.text, letterSpacing: '-0.5px'}}>
                     {tr('header.greeting', lang, {name: displayName})}
@@ -643,21 +662,32 @@ export default function App() {
                     WebkitOverflowScrolling: 'touch'
                 }}>
                     <TabButton active={activeTab === 'interests'} onClick={() => { setActiveTab('interests'); setIsEditingInterests(false); }} colors={colors}>
-                        {tr('tab.interests', lang)}
+                        {tr('tab.interests', lang) || "Interests"}
                     </TabButton>
                     <TabButton active={activeTab === 'sources'} onClick={() => { setActiveTab('sources'); setIsEditingInterests(false); }} colors={colors}>
-                        {tr('tab.sources', lang)}
+                        {tr('tab.sources', lang) || "Sources"}
                     </TabButton>
                     <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); setIsEditingInterests(false); }} colors={colors}>
-                        {tr('tab.insights', lang)}
+                        {tr('tab.insights', lang) || "Insights"}
                     </TabButton>
                     <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setIsEditingInterests(false); }} colors={colors}>
-                        {tr('tab.settings', lang)}
+                        {tr('tab.settings', lang) || "Settings"}
                     </TabButton>
+                    
+                    {(userRole === 'MODERATOR' || userRole === 'ADMIN') && (
+                        <TabButton active={activeTab === 'moderation'} onClick={() => { setActiveTab('moderation'); setIsEditingInterests(false); }} colors={colors}>
+                            Mod
+                        </TabButton>
+                    )}
                 </div>
             </div>
 
             <div style={{padding: '0 20px'}}>
+                
+                {activeTab === 'moderation' && (
+                    <ModeratorDashboard moderatorId={user.id!} apiBaseUrl={apiBaseUrl} colors={colors} />
+                )}
+
                 {activeTab === 'interests' && (
                     <div style={{animation: 'fadeIn 0.3s ease-in-out'}}>
                         <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: colors.text}}>
@@ -857,11 +887,23 @@ export default function App() {
                                                     </a>
                                                 </div>
                                             </div>
-                                            <button onClick={() => handleRemoveSource(source.url, i)} style={{
-                                                background: `${colors.danger}15`, border: 'none', color: colors.danger, width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
-                                            }}>
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                            </button>
+                                            
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button onClick={() => setReportModalState({ isOpen: true, sourceId: source.id })} style={{
+                                                    background: `${colors.chartBar}15`, border: 'none', color: colors.chartBar, width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                                                }} title="Report Source">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                                                        <line x1="4" y1="22" x2="4" y2="15"></line>
+                                                    </svg>
+                                                </button>
+                                                
+                                                <button onClick={() => handleRemoveSource(source.url, i)} style={{
+                                                    background: `${colors.danger}15`, border: 'none', color: colors.danger, width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                                                }} title="Remove Source">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div style={{
                                             display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${colors.hint}20`, paddingTop: '16px'

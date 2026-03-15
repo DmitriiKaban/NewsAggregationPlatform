@@ -2,14 +2,17 @@ package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import md.botservice.dto.ReportRequest;
 import md.botservice.models.Language;
 import md.botservice.models.ReactionType;
+import md.botservice.models.ReportReason;
 import md.botservice.models.User;
 import md.botservice.producers.EventTrackingService;
 import md.botservice.utils.KeyboardHelper;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.bots.AbsSender;
@@ -26,6 +29,7 @@ public class CallbackQueryHandler {
     private final EventTrackingService eventTrackingService;
     private final MessageService messageService;
     private final KeyboardHelper keyboardHelper;
+    private final ReportService reportService;
 
     public void handleCallbackQuery(CallbackQuery callbackQuery, AbsSender sender) {
         String data = callbackQuery.getData();
@@ -47,6 +51,67 @@ public class CallbackQueryHandler {
                 String postId = data.substring("DISLIKE_POST:".length());
                 eventTrackingService.trackReaction(user.getId(), postId, ReactionType.DISLIKE);
                 answerCallbackWithToast(callbackQuery, sender, messageService.get("reaction.dislike.toast", user.getLanguage()));
+                return;
+            }
+
+            if (data.startsWith("REPORT_POST:")) {
+                String[] parts = data.split(":");
+                String postId = parts[1];
+                String sourceId = parts.length > 2 ? parts[2] : "null";
+
+                EditMessageReplyMarkup edit = new EditMessageReplyMarkup();
+                edit.setChatId(String.valueOf(chatId));
+                edit.setMessageId(messageId);
+                edit.setReplyMarkup(keyboardHelper.getReportReasonKeyboard(postId, sourceId, user.getLanguage()));
+
+                sender.execute(edit);
+                answerCallback(callbackQuery, sender);
+                return;
+            }
+
+            if (data.startsWith("CANCEL_REPORT:")) {
+                String[] parts = data.split(":");
+                String postId = parts[1];
+                String sourceId = parts.length > 2 ? parts[2] : "null";
+
+                EditMessageReplyMarkup edit = new EditMessageReplyMarkup();
+                edit.setChatId(String.valueOf(chatId));
+                edit.setMessageId(messageId);
+
+                Long parsedSourceId = "null".equals(sourceId) ? null : Long.parseLong(sourceId);
+                edit.setReplyMarkup(keyboardHelper.getPostReactionKeyboard(postId, parsedSourceId, user.getLanguage()));
+
+                sender.execute(edit);
+                answerCallback(callbackQuery, sender);
+                return;
+            }
+
+            if (data.startsWith("SUBMIT_REPORT:")) {
+                String[] parts = data.split(":");
+                String postId = parts[1];
+                String sourceId = parts[2];
+                ReportReason reason = ReportReason.valueOf(parts[3]);
+
+                ReportRequest req = new ReportRequest();
+                req.setReporterId(user.getId());
+                req.setArticleId(Long.parseLong(postId));
+
+                if (!"null".equals(sourceId)) {
+                    req.setSourceId(Long.parseLong(sourceId));
+                }
+
+                req.setReason(reason);
+                reportService.submitReport(req);
+
+                EditMessageReplyMarkup edit = new EditMessageReplyMarkup();
+                edit.setChatId(String.valueOf(chatId));
+                edit.setMessageId(messageId);
+
+                Long parsedSourceId = "null".equals(sourceId) ? null : Long.parseLong(sourceId);
+                edit.setReplyMarkup(keyboardHelper.getPostReactionKeyboard(postId, parsedSourceId, user.getLanguage()));
+                sender.execute(edit);
+
+                answerCallbackWithToast(callbackQuery, sender, messageService.get("report.submitted.toast", user.getLanguage()));
                 return;
             }
 
@@ -94,7 +159,7 @@ public class CallbackQueryHandler {
                 user.setDailySummaryEnabled(!user.isDailySummaryEnabled());
                 userService.updateUser(user);
                 updateSettingsMenu(user, chatId, messageId, sender);
-                answerCallbackWithToast(callbackQuery, sender, "Daily summary preference updated!");
+                answerCallbackWithToast(callbackQuery, sender, messageService.get("settings.daily_summary_updated", user.getLanguage()));
                 return;
             }
 
@@ -102,7 +167,7 @@ public class CallbackQueryHandler {
                 user.setWeeklySummaryEnabled(!user.isWeeklySummaryEnabled());
                 userService.updateUser(user);
                 updateSettingsMenu(user, chatId, messageId, sender);
-                answerCallbackWithToast(callbackQuery, sender, "Weekly summary preference updated!");
+                answerCallbackWithToast(callbackQuery, sender, messageService.get("settings.weekly_summary_updated", user.getLanguage()));
                 return;
             }
 

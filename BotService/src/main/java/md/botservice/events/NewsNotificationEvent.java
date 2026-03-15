@@ -9,6 +9,7 @@ public record NewsNotificationEvent(
         String title,
         String url,
         String sourceName,
-        String topic
+        String topic,
+        Long sourceId
 ) {
 }

@@ -34,7 +34,7 @@ public class NewsEventListener {
         try {
             User user = userService.findById(event.userId());
 
-            InlineKeyboardMarkup reactionKeyboard = keyboardHelper.getPostReactionKeyboard(event.postId(), user.getLanguage());
+            InlineKeyboardMarkup reactionKeyboard = keyboardHelper.getPostReactionKeyboard(event.postId(), event.sourceId(), user.getLanguage());
 
             botService.sendNewsAlert(event, reactionKeyboard);
 

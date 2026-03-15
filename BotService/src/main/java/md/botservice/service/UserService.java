@@ -71,7 +71,8 @@ public class UserService {
                 user.isShowOnlySubscribedSources(),
                 user.getPreferredLanguage(),
                 user.isDailySummaryEnabled(),
-                user.isWeeklySummaryEnabled()
+                user.isWeeklySummaryEnabled(),
+                user.getRole() != null ? user.getRole().name() : "USER"
         );
     }
 

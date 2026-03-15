@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
     weekly_summary_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    preferred_language VARCHAR(5) CHECK (preferred_language IN ('en', 'ro', 'ru'))
+    preferred_language VARCHAR(5) CHECK (preferred_language IN ('en', 'ro', 'ru')),
+    role VARCHAR(20) DEFAULT 'USER' CHECK (role IN ('USER', 'MODERATOR', 'ADMIN'))
 );
 
 CREATE TABLE IF NOT EXISTS articles (
@@ -87,6 +88,17 @@ CREATE TABLE analytics_events (
     CONSTRAINT fk_analytics_event_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS reports (
+    id BIGSERIAL PRIMARY KEY,
+    article_id BIGINT REFERENCES articles(id) ON DELETE CASCADE,
+    source_id BIGINT REFERENCES sources(id) ON DELETE CASCADE,
+    reporter_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reported_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+    reason VARCHAR(100) NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'REVIEWED', 'RESOLVED', 'DISMISSED')),
+    reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_event_type ON analytics_events (event_type);
 CREATE INDEX IF NOT EXISTS idx_user_time ON analytics_events (user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_user_activity_date ON user_activity(activity_date);
@@ -94,3 +106,5 @@ CREATE INDEX IF NOT EXISTS idx_user_activity_user_date ON user_activity(user_id,
 CREATE INDEX IF NOT EXISTS idx_users_language ON users(preferred_language);
 CREATE INDEX IF NOT EXISTS articles_vector_idx ON articles USING hnsw (vector vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS users_vector_idx ON users USING hnsw (interests_vector vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+CREATE INDEX IF NOT EXISTS idx_reports_reported_at ON reports(reported_at DESC);

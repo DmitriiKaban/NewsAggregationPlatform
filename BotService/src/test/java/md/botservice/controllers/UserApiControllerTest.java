@@ -50,9 +50,10 @@ class UserApiControllerTest {
         String language = "en";
         boolean dailySummaryEnabled = true;
         boolean weeklySummaryEnabled = false;
+        String role = "USER";
 
         UserProfileResponse userProfileResponse = new UserProfileResponse(
-                firstName, lastName, interests, sourceDtoList, strictSourceFiltering, language, dailySummaryEnabled, weeklySummaryEnabled
+                firstName, lastName, interests, sourceDtoList, strictSourceFiltering, language, dailySummaryEnabled, weeklySummaryEnabled, role
         );
         when(userService.getUserProfile(userId)).thenReturn(userProfileResponse);
 
@@ -75,7 +76,8 @@ class UserApiControllerTest {
                 .andExpect(jsonPath("$.strictSourceFiltering").value(false))
                 .andExpect(jsonPath("$.language").value("en"))
                 .andExpect(jsonPath("$.dailySummaryEnabled").value(true))
-                .andExpect(jsonPath("$.weeklySummaryEnabled").value(false));
+                .andExpect(jsonPath("$.weeklySummaryEnabled").value(false))
+                .andExpect(jsonPath("$.role").value("USER"));
     }
 
     @Test

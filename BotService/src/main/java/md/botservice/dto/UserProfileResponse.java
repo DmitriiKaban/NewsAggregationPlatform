@@ -10,6 +10,7 @@ public record UserProfileResponse(
         boolean strictSourceFiltering,
         String language,
         boolean dailySummaryEnabled,
-        boolean weeklySummaryEnabled
+        boolean weeklySummaryEnabled,
+        String role
 ) {
 }
