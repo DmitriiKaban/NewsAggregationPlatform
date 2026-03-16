@@ -19,9 +19,13 @@ public class ReportApiController {
     private final ReportService reportService;
 
     @PostMapping
-    public ResponseEntity<Map<String, String>> submitReport(@RequestBody ReportRequest request) {
-        reportService.submitReport(request);
-        return ResponseEntity.ok(Map.of("message", "Report submitted successfully"));
+    public ResponseEntity<?> submitReport(@RequestBody ReportRequest request) {
+        try {
+            reportService.submitReport(request);
+            return ResponseEntity.ok(Map.of("message", "Report submitted successfully"));
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping

@@ -225,7 +225,7 @@ export default function App() {
     const [dauStats, setDauStats] = useState<DauData[]>([]);
     const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
 
-    const apiBaseUrl = "https://247c-212-28-65-233.ngrok-free.app/api";
+    const apiBaseUrl = "https://4e10-212-28-65-233.ngrok-free.app/api";
     
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
@@ -656,26 +656,51 @@ export default function App() {
                     width: '100%',
                     background: colors.secondaryBg,
                     borderRadius: '14px',
-                    padding: '4px',
-                    gap: '2px',
+                    padding: '6px',
+                    gap: '4px',
                     overflowX: 'auto',
                     WebkitOverflowScrolling: 'touch'
                 }}>
-                    <TabButton active={activeTab === 'interests'} onClick={() => { setActiveTab('interests'); setIsEditingInterests(false); }} colors={colors}>
+                    <TabButton 
+                        active={activeTab === 'interests'} 
+                        onClick={() => { setActiveTab('interests'); setIsEditingInterests(false); }} 
+                        colors={colors}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>}
+                    >
                         {tr('tab.interests', lang) || "Interests"}
                     </TabButton>
-                    <TabButton active={activeTab === 'sources'} onClick={() => { setActiveTab('sources'); setIsEditingInterests(false); }} colors={colors}>
+                    <TabButton 
+                        active={activeTab === 'sources'} 
+                        onClick={() => { setActiveTab('sources'); setIsEditingInterests(false); }} 
+                        colors={colors}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>}
+                    >
                         {tr('tab.sources', lang) || "Sources"}
                     </TabButton>
-                    <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); setIsEditingInterests(false); }} colors={colors}>
+                    <TabButton 
+                        active={activeTab === 'insights'} 
+                        onClick={() => { setActiveTab('insights'); setIsEditingInterests(false); }} 
+                        colors={colors}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>}
+                    >
                         {tr('tab.insights', lang) || "Insights"}
                     </TabButton>
-                    <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setIsEditingInterests(false); }} colors={colors}>
+                    <TabButton 
+                        active={activeTab === 'settings'} 
+                        onClick={() => { setActiveTab('settings'); setIsEditingInterests(false); }} 
+                        colors={colors}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>}
+                    >
                         {tr('tab.settings', lang) || "Settings"}
                     </TabButton>
                     
                     {(userRole === 'MODERATOR' || userRole === 'ADMIN') && (
-                        <TabButton active={activeTab === 'moderation'} onClick={() => { setActiveTab('moderation'); setIsEditingInterests(false); }} colors={colors}>
+                        <TabButton 
+                            active={activeTab === 'moderation'} 
+                            onClick={() => { setActiveTab('moderation'); setIsEditingInterests(false); }} 
+                            colors={colors}
+                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}
+                        >
                             Mod
                         </TabButton>
                     )}
@@ -1252,33 +1277,32 @@ export default function App() {
     );
 }
 
-function TabButton({active, onClick, children, colors}: { active: boolean; onClick: () => void; children: React.ReactNode; colors: any; }) {
+function TabButton({active, onClick, children, colors, icon}: { active: boolean; onClick: () => void; children: React.ReactNode; colors: any; icon?: React.ReactNode }) {
     return (
         <button onClick={onClick} style={{
-            flex: 1, 
-            minWidth: 0, 
-            padding: '8px 2px',
+            flex: '0 0 auto',
+            minWidth: '80px',
+            padding: '8px 14px',
             background: active ? colors.bg : 'transparent', 
             border: 'none',
             borderRadius: '10px', 
             color: active ? colors.text : colors.hint, 
-            fontSize: '11.5px', 
+            fontSize: '13px', 
             fontWeight: '700',
             cursor: 'pointer', 
             transition: 'all 0.21s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
             display: 'flex', 
             justifyContent: 'center', 
             alignItems: 'center',
+            gap: '6px',
             boxShadow: active ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
         }}>
+            {icon && <span style={{ display: 'flex', alignItems: 'center' }}>{icon}</span>}
             <span style={{ 
                 display: 'block', 
-                width: '100%', 
-                textAlign: 'center',
                 whiteSpace: 'nowrap', 
                 overflow: 'hidden', 
-                textOverflow: 'ellipsis',
-                padding: '0 2px'
+                textOverflow: 'ellipsis'
             }}>
                 {children}
             </span>

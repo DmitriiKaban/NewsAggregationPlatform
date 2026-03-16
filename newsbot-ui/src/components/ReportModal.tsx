@@ -31,6 +31,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
             return;
         }
 
+        if (!sourceId) {
+            alert('Error: Source ID is missing. Cannot submit a report for this content.');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const response = await fetch(`${apiBaseUrl}/reports`, {
@@ -51,7 +56,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
                 alert('Thank you, your report has been submitted.');
                 onClose();
             } else {
-                alert('Failed to submit report. Please try again.');
+                const data = await response.json().catch(() => ({}));
+                alert(data.error || 'Failed to submit report. Please try again.');
             }
         } catch (error) {
             console.error('Error submitting report:', error);

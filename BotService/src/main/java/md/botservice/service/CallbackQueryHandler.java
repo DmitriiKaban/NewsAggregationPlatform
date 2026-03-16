@@ -92,26 +92,32 @@ public class CallbackQueryHandler {
                 String sourceId = parts[2];
                 ReportReason reason = ReportReason.valueOf(parts[3]);
 
+                if ("null".equals(sourceId) || sourceId.trim().isEmpty()) {
+                    answerCallbackWithToast(callbackQuery, sender, "Error: Missing source ID. Cannot process report.");
+                    return;
+                }
+
                 ReportRequest req = new ReportRequest();
                 req.setReporterId(user.getId());
                 req.setArticleId(Long.parseLong(postId));
-
-                if (!"null".equals(sourceId)) {
-                    req.setSourceId(Long.parseLong(sourceId));
-                }
-
+                req.setSourceId(Long.parseLong(sourceId));
                 req.setReason(reason);
-                reportService.submitReport(req);
 
-                EditMessageReplyMarkup edit = new EditMessageReplyMarkup();
-                edit.setChatId(String.valueOf(chatId));
-                edit.setMessageId(messageId);
+                try {
+                    reportService.submitReport(req);
 
-                Long parsedSourceId = "null".equals(sourceId) ? null : Long.parseLong(sourceId);
-                edit.setReplyMarkup(keyboardHelper.getPostReactionKeyboard(postId, parsedSourceId, user.getLanguage()));
-                sender.execute(edit);
+                    EditMessageReplyMarkup edit = new EditMessageReplyMarkup();
+                    edit.setChatId(String.valueOf(chatId));
+                    edit.setMessageId(messageId);
 
-                answerCallbackWithToast(callbackQuery, sender, messageService.get("report.submitted.toast", user.getLanguage()));
+                    Long parsedSourceId = Long.parseLong(sourceId);
+                    edit.setReplyMarkup(keyboardHelper.getPostReactionKeyboard(postId, parsedSourceId, user.getLanguage()));
+                    sender.execute(edit);
+
+                    answerCallbackWithToast(callbackQuery, sender, messageService.get("report.submitted.toast", user.getLanguage()));
+                } catch (IllegalStateException e) {
+                    answerCallbackWithToast(callbackQuery, sender, "⚠️ " + e.getMessage());
+                }
                 return;
             }
 

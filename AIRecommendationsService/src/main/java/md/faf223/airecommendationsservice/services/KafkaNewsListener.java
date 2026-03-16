@@ -46,11 +46,11 @@ public class KafkaNewsListener {
             List<UserRecommendationService.Candidate> candidates = recommendationService.findMatchingUsers(sourceId, vectorStr);
             for (var c : candidates) {
                 if (c.readAll()) {
-                    notificationProducer.send(c.userId(), title, link, 1.0, "read_all", articleId, sourceName, aiTopic);
+                    notificationProducer.send(c.userId(), title, link, 1.0, "read_all", articleId, sourceName, aiTopic, sourceId);
                 } else if (c.strictMode() && c.subscribed() && c.similarity() > 0.82) {
-                    notificationProducer.send(c.userId(), title, link, c.similarity(), "strict_ai", articleId, sourceName, aiTopic);
+                    notificationProducer.send(c.userId(), title, link, c.similarity(), "strict_ai", articleId, sourceName, aiTopic, sourceId);
                 } else if (!c.strictMode() && c.similarity() > 0.80) {
-                    notificationProducer.send(c.userId(), title, link, c.similarity(), "normal_ai", articleId, sourceName, aiTopic);
+                    notificationProducer.send(c.userId(), title, link, c.similarity(), "normal_ai", articleId, sourceName, aiTopic, sourceId);
                 }
             }
         } catch (Exception e) {
@@ -77,4 +77,5 @@ public class KafkaNewsListener {
             recommendationService.saveReaction(userId, articleId, reaction);
         } catch (Exception e) { log.error("Error", e); }
     }
+
 }

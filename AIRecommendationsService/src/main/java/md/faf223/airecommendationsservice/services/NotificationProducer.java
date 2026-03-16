@@ -15,16 +15,19 @@ public class NotificationProducer {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    public void send(long userId, String title, String url, double score, String reason, long articleId, String sourceName, String topic) {
+    public void send(long userId, String title, String url, double score, String reason, long articleId, String sourceName, String topic, Long sourceId) {
         try {
             ObjectNode payload = objectMapper.createObjectNode()
                     .put("userId", userId).put("title", title).put("url", url)
                     .put("score", score).put("reason", reason)
                     .put("postId", String.valueOf(articleId))
-                    .put("sourceName", sourceName).put("topic", topic);
+                    .put("sourceName", sourceName).put("topic", topic)
+                    .put("sourceId", sourceId);
+
             kafkaTemplate.send("news.notification", objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
             log.error("Failed to send notification", e);
         }
     }
+
 }

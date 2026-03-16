@@ -7,6 +7,7 @@ import md.botservice.models.Report;
 import md.botservice.models.ReportStatus;
 import md.botservice.models.User;
 import md.botservice.models.UserRole;
+import md.botservice.repository.ArticleRepository;
 import md.botservice.repository.ReportRepository;
 import md.botservice.repository.SourceRepository;
 import md.botservice.repository.UserRepository;
@@ -22,11 +23,22 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
     private final SourceRepository sourceRepository;
+    private final ArticleRepository articleRepository;
 
     @Transactional
     public Report submitReport(ReportRequest request) {
         if (request.getReporterId() == null) {
             throw new IllegalArgumentException("Reporter ID is required");
+        }
+
+        if (request.getArticleId() != null) {
+            if (reportRepository.existsByReporterIdAndArticleId(request.getReporterId(), request.getArticleId())) {
+                throw new IllegalStateException("You have already reported this article.");
+            }
+        } else if (request.getSourceId() != null) {
+            if (reportRepository.existsByReporterIdAndSourceIdAndArticleIdIsNull(request.getReporterId(), request.getSourceId())) {
+                throw new IllegalStateException("You have already reported this source.");
+            }
         }
 
         User reporter = userRepository.findById(request.getReporterId())
@@ -63,6 +75,13 @@ public class ReportService {
                         .orElse(null);
             }
 
+            ReportResponse.ArticleInfo articleInfo = null;
+            if (r.getArticleId() != null) {
+                articleInfo = articleRepository.findById(r.getArticleId())
+                        .map(a -> new ReportResponse.ArticleInfo(a.getId(), a.getTitle(), a.getUrl()))
+                        .orElse(null);
+            }
+
             ReportResponse.ReporterInfo reporterInfo = null;
             if (r.getReporter() != null) {
                 reporterInfo = new ReportResponse.ReporterInfo(r.getReporter().getId(), r.getReporter().getUsername());
@@ -73,6 +92,7 @@ public class ReportService {
                     r.getArticleId(),
                     r.getSourceId(),
                     sourceInfo,
+                    articleInfo,
                     reporterInfo,
                     r.getReason() != null ? r.getReason().name() : "UNKNOWN",
                     r.getStatus() != null ? r.getStatus().name() : "PENDING",
