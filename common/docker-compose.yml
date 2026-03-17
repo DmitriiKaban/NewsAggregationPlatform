@@ -44,7 +44,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data_news:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter
