@@ -18,7 +18,7 @@ export const InsightsTab = ({ lang, colors, apiBaseUrl, globalInsights, userInsi
 
     return (
         <div style={{animation: 'fadeIn 0.3s ease-in-out', display: 'flex', flexDirection: 'column', gap: '20px'}}>
-            <h3 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>{tr('insights.title', lang) || 'Analytics & Insights'}</h3>
+            <h3 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>{tr('insights.title', lang)}</h3>
 
             <div style={{ background: colors.secondaryBg, padding: '24px 20px', borderRadius: '24px', border: `1px solid ${colors.hint}20` }}>
                 <h4 style={{margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px'}}>

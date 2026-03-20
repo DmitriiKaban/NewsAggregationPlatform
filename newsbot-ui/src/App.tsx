@@ -142,7 +142,7 @@ export default function App() {
         const handleSaveInterests = async () => {
             if (!user?.id) return;
             if (!backendReachable) {
-                showMessage(tr('error.update_settings', lang) || "Cannot save: Backend is unreachable.");
+                showMessage(tr('error.backend_unreachable', lang));
                 return;
             }
 
@@ -157,7 +157,7 @@ export default function App() {
                 showMessage(tr('interests.saved', lang));
             } catch (err: any) {
                 tg?.MainButton.hideProgress?.();
-                showMessage(`Failed: ${err.message}`);
+                showMessage(tr('error.failed_prefix', lang, { message: err.message }));
             }
         };
 
@@ -312,7 +312,7 @@ export default function App() {
 
     return (
         <div style={{ minHeight: '100vh', background: colors.bg, color: colors.text, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', paddingBottom: '40px' }}>
-            <ReportModal isOpen={reportModalState.isOpen} onClose={() => setReportModalState({ isOpen: false })} sourceId={reportModalState.sourceId} articleId={reportModalState.articleId} currentUserId={user.id!} colors={colors} />
+            <ReportModal lang={lang} isOpen={reportModalState.isOpen} onClose={() => setReportModalState({ isOpen: false })} sourceId={reportModalState.sourceId} articleId={reportModalState.articleId} currentUserId={user.id!} colors={colors} />
 
             <div style={{padding: '24px 20px 20px 20px'}}>
                 <h1 style={{fontSize: '28px', fontWeight: '800', margin: '0 0 6px 0', color: colors.text, letterSpacing: '-0.5px'}}>
@@ -324,21 +324,21 @@ export default function App() {
             <div style={{ padding: '10px 16px', marginBottom: '20px', position: 'sticky', top: 0, background: colors.bg, zIndex: 10, width: '100%', overflow: 'hidden' }}>
                 <div className="scrollable-tabs" style={{ display: 'flex', width: '100%', background: colors.secondaryBg, borderRadius: '14px', padding: '6px', gap: '4px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                     <TabButton active={activeTab === 'interests'} onClick={() => { setActiveTab('interests'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>}>
-                        {tr('tab.interests', lang) || "Interests"}
+                        {tr('tab.interests', lang)}
                     </TabButton>
                     <TabButton active={activeTab === 'sources'} onClick={() => { setActiveTab('sources'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>}>
-                        {tr('tab.sources', lang) || "Sources"}
+                        {tr('tab.sources', lang)}
                     </TabButton>
                     <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>}>
-                        {tr('tab.insights', lang) || "Insights"}
+                        {tr('tab.insights', lang)}
                     </TabButton>
                     <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>}>
-                        {tr('tab.settings', lang) || "Settings"}
+                        {tr('tab.settings', lang)}
                     </TabButton>
                     
                     {(userRole === 'MODERATOR' || userRole === 'ADMIN') && (
                         <TabButton active={activeTab === 'moderation'} onClick={() => { setActiveTab('moderation'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}>
-                            Mod
+                            {tr('tab.moderator', lang)}
                         </TabButton>
                     )}
                 </div>

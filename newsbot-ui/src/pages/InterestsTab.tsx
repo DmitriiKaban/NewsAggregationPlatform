@@ -90,14 +90,14 @@ export const InterestsTab = ({ lang, colors, apiBaseUrl, interestTags, setIntere
                                         setInterestTags(interestTags.slice(0, -1));
                                     }
                                 }}
-                                placeholder={interestTags.length === 0 ? tr('interests.input_placeholder', lang) : "Type and press Enter..."}
+                                placeholder={interestTags.length === 0 ? tr('interests.input_placeholder', lang) : tr('interests.type_prompt', lang)}
                                 autoFocus
                                 style={{ flex: 1, minWidth: '150px', border: 'none', outline: 'none', background: 'transparent', color: colors.text, fontSize: '15px', padding: '8px 0', fontFamily: 'inherit', fontWeight: '500' }}
                             />
                         </div>
                         <p style={{ fontSize: '13px', color: colors.hint, marginTop: '12px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                            {tr('interests.hint', lang) || 'Press Enter or comma to add a new tag'}
+                            {tr('interests.hint', lang)}
                         </p>
                     </div>
                 )}

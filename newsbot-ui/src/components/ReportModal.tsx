@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
+import { tr, type Language } from '../i18n/translations.ts';
 
 interface ReportModalProps {
+    lang: Language;
     isOpen: boolean;
     onClose: () => void;
     articleId?: number;
@@ -11,15 +13,15 @@ interface ReportModalProps {
 }
 
 const REPORT_REASONS = [
-    { value: 'SPAM', label: 'Spam' },
-    { value: 'MISLEADING', label: 'Misleading / Fake News' },
-    { value: 'HATE_SPEECH', label: 'Hate Speech / Inappropriate' },
-    { value: 'BROKEN_LINK', label: 'Broken Link' },
-    { value: 'UNRELATED_CONTENT', label: 'Unrelated Content' },
-    { value: 'OTHER', label: 'Other' }
+    { value: 'SPAM', key: 'report.reason.SPAM' },
+    { value: 'MISLEADING', key: 'report.reason.MISLEADING' },
+    { value: 'HATE_SPEECH', key: 'report.reason.HATE_SPEECH' },
+    { value: 'BROKEN_LINK', key: 'report.reason.BROKEN_LINK' },
+    { value: 'UNRELATED_CONTENT', key: 'report.reason.UNRELATED_CONTENT' },
+    { value: 'OTHER', key: 'report.reason.OTHER' }
 ];
 
-export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, articleId, sourceId, currentUserId, colors }) => {
+export const ReportModal: React.FC<ReportModalProps> = ({ lang, isOpen, onClose, articleId, sourceId, currentUserId, colors }) => {
     const [selectedReason, setSelectedReason] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,12 +29,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
 
     const handleSubmit = async () => {
         if (!selectedReason) {
-            alert('Please select a reason.');
+            alert(tr('report.alert.select_reason', lang));
             return;
         }
 
         if (!sourceId) {
-            alert('Error: Source ID is missing. Cannot submit a report for this content.');
+            alert(tr('report.alert.missing_source', lang));
             return;
         }
 
@@ -44,10 +46,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
                 reporterId: currentUserId,
                 reason: selectedReason
             });
-            alert('Thank you, your report has been submitted.');
+            alert(tr('report.alert.success', lang));
             onClose();
         } catch (error: any) {
-            alert(error.message || 'Failed to submit report. Please try again.');
+            alert(error.message || tr('report.alert.failed', lang));
         } finally {
             setIsSubmitting(false);
         }
@@ -65,10 +67,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
                 border: `1px solid ${colors.hint}20`
             }}>
                 <h2 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 8px 0', color: colors.text }}>
-                    Report Content
+                    {tr('report.title', lang)}
                 </h2>
                 <p style={{ fontSize: '14px', color: colors.hint, margin: '0 0 20px 0', fontWeight: '500' }}>
-                    Why are you reporting this?
+                    {tr('report.subtitle', lang)}
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
@@ -82,7 +84,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
                                 onChange={(e) => setSelectedReason(e.target.value)}
                                 style={{ accentColor: colors.danger, width: '18px', height: '18px' }}
                             />
-                            <span style={{ fontSize: '15px', color: colors.text, fontWeight: '600' }}>{reason.label}</span>
+                            <span style={{ fontSize: '15px', color: colors.text, fontWeight: '600' }}>{tr(reason.key, lang)}</span>
                         </label>
                     ))}
                 </div>
@@ -92,14 +94,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
                         padding: '10px 16px', backgroundColor: 'transparent', color: colors.hint,
                         border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: '700', cursor: 'pointer'
                     }}>
-                        Cancel
+                        {tr('report.cancel', lang)}
                     </button>
                     <button onClick={handleSubmit} disabled={isSubmitting} style={{
                         padding: '10px 16px', backgroundColor: colors.danger, color: '#fff',
                         border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: '700', 
                         cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1
                     }}>
-                        {isSubmitting ? 'Submitting...' : 'Submit Report'}
+                        {isSubmitting ? tr('report.submitting', lang) : tr('report.submit', lang)}
                     </button>
                 </div>
             </div>
