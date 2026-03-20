@@ -225,7 +225,7 @@ export default function App() {
     const [dauStats, setDauStats] = useState<DauData[]>([]);
     const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
 
-    const apiBaseUrl = "https://4e10-212-28-65-233.ngrok-free.app/api";
+    const apiBaseUrl = "https://85e9-212-28-65-233.ngrok-free.app/api";
     
     const tg = window.Telegram?.WebApp;
     const theme = tg?.themeParams || {};
@@ -1278,33 +1278,37 @@ export default function App() {
 }
 
 function TabButton({active, onClick, children, colors, icon}: { active: boolean; onClick: () => void; children: React.ReactNode; colors: any; icon?: React.ReactNode }) {
+    const cleanChildren = typeof children === 'string' 
+        ? children.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim() 
+        : children;
+
     return (
         <button onClick={onClick} style={{
-            flex: '0 0 auto',
-            minWidth: '80px',
-            padding: '8px 14px',
+            flex: '1 1 0',
+            minWidth: 0,
+            padding: '8px 4px',
             background: active ? colors.bg : 'transparent', 
             border: 'none',
             borderRadius: '10px', 
             color: active ? colors.text : colors.hint, 
-            fontSize: '13px', 
+            fontSize: '12px',
             fontWeight: '700',
             cursor: 'pointer', 
             transition: 'all 0.21s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
             display: 'flex', 
             justifyContent: 'center', 
             alignItems: 'center',
-            gap: '6px',
+            gap: '4px',
             boxShadow: active ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
         }}>
-            {icon && <span style={{ display: 'flex', alignItems: 'center' }}>{icon}</span>}
+            {icon && <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>{icon}</span>}
             <span style={{ 
                 display: 'block', 
                 whiteSpace: 'nowrap', 
                 overflow: 'hidden', 
                 textOverflow: 'ellipsis'
             }}>
-                {children}
+                {cleanChildren}
             </span>
         </button>
     );
