@@ -8,9 +8,14 @@ import { InsightsTab } from './pages/InsightsTab';
 import { SettingsTab } from './pages/SettingsTab';
 import { TabButton } from './components/TabButton';
 import { showMessage, getHandle } from './utils/helpers';
+import { api } from './services/api';
+import { ENV } from './config/env';
+import { useTelegram } from './hooks/useTelegram';
 import type { Source, Recommendation, GlobalInsights, UserInsights, DauData, TopSource } from './types';
 
 export default function App() {
+    const { tg, isTelegramEnvironment, user, error: telegramError, displayName, colors, setDisplayName } = useTelegram();
+    
     const [lang, setLang] = useState<Language>('en');
     const [originalInterests, setOriginalInterests] = useState('');
     const [interestTags, setInterestTags] = useState<string[]>([]);
@@ -33,89 +38,22 @@ export default function App() {
     const [reportModalState, setReportModalState] = useState<{isOpen: boolean, sourceId?: number, articleId?: number}>({ isOpen: false });
 
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [backendReachable, setBackendReachable] = useState(true);
-    const [isTelegramEnvironment, setIsTelegramEnvironment] = useState(false);
-    const [user, setUser] = useState<{ id?: number; first_name?: string; username?: string } | null>(null);
-    const [displayName, setDisplayName] = useState('there');
     const [languageLoaded, setLanguageLoaded] = useState(false);
-
-    const apiBaseUrl = "https://85e9-212-28-65-233.ngrok-free.app/api";
-    
-    const tg = window.Telegram?.WebApp;
-    const theme = tg?.themeParams || {};
-
-    const colors = {
-        bg: theme.bg_color || '#ffffff',
-        text: theme.text_color || '#000000',
-        hint: theme.hint_color || '#999999',
-        link: theme.link_color || '#2481cc',
-        button: theme.button_color || '#2481cc',
-        buttonText: theme.button_text_color || '#ffffff',
-        secondaryBg: theme.secondary_bg_color || '#f0f0f0',
-        success: '#34C759',
-        danger: '#FF3B30',
-        chartBar: '#FF9500',
-    };
-
-    useEffect(() => {
-        if (tg) {
-            setIsTelegramEnvironment(true);
-            try {
-                tg.ready();
-                tg.expand();
-                const userData = tg.initDataUnsafe?.user;
-                if (userData?.id) {
-                    setUser({id: userData.id, first_name: userData.first_name || 'User', username: userData.username});
-                    setDisplayName(userData.first_name || 'there');
-                    return;
-                }
-                if (tg.initData && tg.initData.length > 0) {
-                    const params = new URLSearchParams(tg.initData);
-                    const userJson = params.get('user');
-                    if (userJson) {
-                        const parsedUser = JSON.parse(userJson);
-                        setUser({
-                            id: parsedUser.id,
-                            first_name: parsedUser.first_name || 'User',
-                            username: parsedUser.username
-                        });
-                        setDisplayName(parsedUser.first_name || 'there');
-                        return;
-                    }
-                }
-                setUser(null);
-                setError("Could not identify user from Telegram(");
-                setLoading(false);
-            } catch {
-                setUser(null);
-                setError("Failed to initialize Bot");
-                setLoading(false);
-            }
-        } else {
-            setUser(null);
-            setError("Must be opened from Telegram");
-            setLoading(false);
-        }
-    }, []);
 
     useEffect(() => {
         if (!user?.id) {
-            setLoading(false);
+            if (telegramError) setLoading(false);
             return;
         }
 
         const controller = new AbortController();
-        const fetchOptions = {
-            headers: {"ngrok-skip-browser-warning": "69420", "Content-Type": "application/json"},
-            signal: controller.signal,
-        };
 
         Promise.all([
-            fetch(`${apiBaseUrl}/users/${user.id}/profile`, fetchOptions).then(r => r.json()),
-            fetch(`${apiBaseUrl}/analytics/users/${user.id}/recommendations`, fetchOptions).then(r => r.json()).catch(() => []),
-            fetch(`${apiBaseUrl}/analytics/global-dashboard`, fetchOptions).then(r => r.json()).catch(() => null),
-            fetch(`${apiBaseUrl}/analytics/users/${user.id}/dashboard`, fetchOptions).then(r => r.json()).catch(() => null),
+            api.getUserProfile(user.id, controller.signal),
+            api.getRecommendations(user.id, controller.signal).catch(() => []),
+            api.getGlobalDashboard(controller.signal).catch(() => null),
+            api.getUserDashboard(user.id, controller.signal).catch(() => null),
         ])
             .then(([profileData, recommendationsData, globalData, userData]) => {
                 const backendLang = profileData.language?.toLowerCase();
@@ -126,14 +64,12 @@ export default function App() {
                 setLanguageLoaded(true);
 
                 if (profileData.firstName?.trim()) setDisplayName(profileData.firstName);
-                
                 if (profileData.role) setUserRole(profileData.role);
 
                 const interestsStr = Array.isArray(profileData.interests)
                     ? profileData.interests.join(', ')
                     : (profileData.interests || '');
                 setOriginalInterests(interestsStr);
-                
                 setInterestTags(interestsStr.split(',').map((s: string) => s.trim()).filter(Boolean));
                 
                 setStrictMode(profileData.strictSourceFiltering || false);
@@ -154,22 +90,20 @@ export default function App() {
                 }
 
                 if (globalData) {
-                    setGlobalInsights(globalData);
-                    setDauStats(globalData.dauStats || []);
-                    setTopSources(globalData.topSources || []);
+                    setGlobalInsights(globalData as GlobalInsights);
+                    setDauStats((globalData as GlobalInsights).dauStats || []);
+                    setTopSources((globalData as GlobalInsights).topSources || []);
                 }
                 if (userData) {
-                    setUserInsights(userData);
+                    setUserInsights(userData as UserInsights);
                 }
 
-                setRecommendations(recommendationsData);
+                setRecommendations(recommendationsData as Recommendation[]);
                 setLoading(false);
-                setError(null);
                 setBackendReachable(true);
             })
             .catch(err => {
                 if (err.name !== 'AbortError') {
-                    setError('Cannot connect to backend');
                     setBackendReachable(false);
                 }
                 setLanguageLoaded(true);
@@ -177,7 +111,7 @@ export default function App() {
             });
 
         return () => controller.abort();
-    }, [user?.id, apiBaseUrl]);
+    }, [user?.id, telegramError, setDisplayName]);
 
     useEffect(() => {
         if (!isTelegramEnvironment) return;
@@ -200,14 +134,13 @@ export default function App() {
         } else {
             tg?.BackButton.hide();
         }
-    }, [activeTab, isEditingInterests, originalInterests, isTelegramEnvironment]);
+    }, [activeTab, isEditingInterests, originalInterests, isTelegramEnvironment, tg]);
 
     useEffect(() => {
         if (!isTelegramEnvironment) return;
 
         const handleSaveInterests = async () => {
             if (!user?.id) return;
-            
             if (!backendReachable) {
                 showMessage(tr('error.update_settings', lang) || "Cannot save: Backend is unreachable.");
                 return;
@@ -216,17 +149,7 @@ export default function App() {
             try {
                 tg?.MainButton.showProgress?.();
                 const stringToSave = interestTags.join(', ');
-                
-                const response = await fetch(`${apiBaseUrl}/users/${user.id}/interests`, {
-                    method: 'POST',
-                    headers: {"ngrok-skip-browser-warning": "69420", "Content-Type": "application/json"},
-                    body: JSON.stringify({interest: stringToSave}),
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => null);
-                    throw new Error(errorData?.message || `HTTP ${response.status}`);
-                }
+                await api.updateInterests(user.id, stringToSave);
                 
                 tg?.MainButton.hideProgress?.();
                 setOriginalInterests(stringToSave);
@@ -249,79 +172,64 @@ export default function App() {
         } else {
             tg?.MainButton.hide();
         }
-    }, [activeTab, isEditingInterests, interestTags, user?.id, backendReachable, apiBaseUrl, isTelegramEnvironment, lang]);
+    }, [activeTab, isEditingInterests, interestTags, user?.id, backendReachable, isTelegramEnvironment, lang, tg]);
 
-    const toggleStrictMode = async () => {
+    const toggleStrictModeState = async () => {
         if (!backendReachable || !user?.id) return;
         const newState = !strictMode;
         setStrictMode(newState);
         try {
-            const res = await fetch(`${apiBaseUrl}/users/${user.id}/settings/strict-filtering?enabled=${newState}`, {
-                method: 'PUT', headers: {"ngrok-skip-browser-warning": "69420"},
-            });
-            if (!res.ok) throw new Error();
+            await api.toggleStrictMode(user.id, newState);
         } catch {
             setStrictMode(!newState);
             showMessage(tr('error.update_settings', lang));
         }
     };
 
-    const toggleDailySummary = async () => {
+    const toggleDailySummaryState = async () => {
         if (!backendReachable || !user?.id) return;
         const newState = !dailySummary;
         setDailySummary(newState);
         try {
-            const res = await fetch(`${apiBaseUrl}/users/${user.id}/settings/daily-summary?enabled=${newState}`, {
-                method: 'PUT', headers: {"ngrok-skip-browser-warning": "69420"},
-            });
-            if (!res.ok) throw new Error();
+            await api.toggleDailySummary(user.id, newState);
         } catch {
             setDailySummary(!newState);
             showMessage(tr('error.update_settings', lang));
         }
     };
 
-    const toggleWeeklySummary = async () => {
+    const toggleWeeklySummaryState = async () => {
         if (!backendReachable || !user?.id) return;
         const newState = !weeklySummary;
         setWeeklySummary(newState);
         try {
-            const res = await fetch(`${apiBaseUrl}/users/${user.id}/settings/weekly-summary?enabled=${newState}`, {
-                method: 'PUT', headers: {"ngrok-skip-browser-warning": "69420"},
-            });
-            if (!res.ok) throw new Error();
+            await api.toggleWeeklySummary(user.id, newState);
         } catch {
             setWeeklySummary(!newState);
             showMessage(tr('error.update_settings', lang));
         }
     };
 
-    const changeLanguage = async (newLang: Language) => {
+    const changeLanguageState = async (newLang: Language) => {
         if (!backendReachable || !user?.id || newLang === lang) return;
         const oldLang = lang;
         setLang(newLang);
         try {
-            const res = await fetch(`${apiBaseUrl}/users/${user.id}/settings/language?lang=${newLang}`, {
-                method: 'PUT', headers: {"ngrok-skip-browser-warning": "69420"},
-            });
-            if (!res.ok) throw new Error();
+            await api.changeLanguage(user.id, newLang);
         } catch {
             setLang(oldLang);
             showMessage(tr('error.update_settings', oldLang));
         }
     };
 
-    const toggleReadAll = async (sourceId: number, index: number) => {
+    const toggleReadAllState = async (sourceId: number, index: number) => {
         if (!backendReachable || !user?.id) return;
         const newState = !sources[index].isReadAll;
         const updated = [...sources];
         updated[index].isReadAll = newState;
         setSources(updated);
         try {
-            const res = await fetch(`${apiBaseUrl}/users/${user.id}/sources/${sourceId}/read-all?readAll=${newState}`, {
-                method: 'PUT', headers: {"ngrok-skip-browser-warning": "69420"},
-            });
-            if (!res.ok) throw new Error();
+            await api.toggleReadAll(user.id, sourceId, newState);
         } catch {
             updated[index].isReadAll = !newState;
             setSources([...updated]);
@@ -335,30 +243,20 @@ export default function App() {
         if (!input) return;
 
         try {
-            const res = await fetch(`${apiBaseUrl}/users/${user.id}/sources`, {
-                method: 'POST',
-                headers: {"ngrok-skip-browser-warning": "69420", "Content-Type": "application/json"},
-                body: JSON.stringify({source: input}),
-            });
-            if (!res.ok) throw new Error();
-
-            const profileRes = await fetch(`${apiBaseUrl}/users/${user.id}/profile`, {
-                headers: {"ngrok-skip-browser-warning": "69420"},
-            });
-            if (profileRes.ok) {
-                const data = await profileRes.json();
-                if (Array.isArray(data.sources)) {
-                    setSources(data.sources.map((s: any) => ({
-                        id: s.id,
-                        url: s.url || '',
-                        name: s.name || getHandle(s.url || ''),
-                        isReadAll: s.isReadAll || false
-                    })).filter((s: Source) => s.url));
-                }
-                if (directUrl) setRecommendations(recommendations.filter(r => r.url !== directUrl));
-                if (!directUrl) setActiveTab('sources');
-                showMessage(tr('sources.added', lang));
+            await api.addSource(user.id, input);
+            const data = await api.getUserProfile(user.id);
+            
+            if (Array.isArray(data.sources)) {
+                setSources(data.sources.map((s: any) => ({
+                    id: s.id,
+                    url: s.url || '',
+                    name: s.name || getHandle(s.url || ''),
+                    isReadAll: s.isReadAll || false
+                })).filter((s: Source) => s.url));
             }
+            if (directUrl) setRecommendations(recommendations.filter(r => r.url !== directUrl));
+            if (!directUrl) setActiveTab('sources');
+            showMessage(tr('sources.added', lang));
         } catch {
             showMessage(tr('error.add_source', lang));
         }
@@ -367,10 +265,7 @@ export default function App() {
     const handleRemoveSource = async (url: string, index: number) => {
         if (!backendReachable || !user?.id) return;
         try {
-            const res = await fetch(`${apiBaseUrl}/users/${user.id}/sources?url=${encodeURIComponent(url)}`, {
-                method: 'DELETE', headers: {"ngrok-skip-browser-warning": "69420"},
-            });
-            if (!res.ok) throw new Error();
+            await api.removeSource(user.id, url);
             setSources(sources.filter((_, i) => i !== index));
         } catch {
             showMessage(tr('error.remove_source', lang));
@@ -406,9 +301,9 @@ export default function App() {
                 </svg>
                 <h2 style={{fontSize: '24px', fontWeight: '700', margin: '0 0 12px 0'}}>{tr('error.user_not_found', lang)}</h2>
                 <p style={{fontSize: '15px', color: colors.hint, lineHeight: 1.5, margin: '0 0 24px 0'}}>{tr('error.open_from_telegram', lang)}</p>
-                {error && (
+                {telegramError && (
                     <div style={{padding: '16px', background: `${colors.danger}15`, borderRadius: '12px', fontSize: '13px', color: colors.danger, textAlign: 'left', border: `1px solid ${colors.danger}30`}}>
-                        <strong>Error:</strong> {error}
+                        <strong>Error:</strong> {telegramError}
                     </div>
                 )}
             </div>
@@ -417,7 +312,7 @@ export default function App() {
 
     return (
         <div style={{ minHeight: '100vh', background: colors.bg, color: colors.text, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', paddingBottom: '40px' }}>
-            <ReportModal isOpen={reportModalState.isOpen} onClose={() => setReportModalState({ isOpen: false })} sourceId={reportModalState.sourceId} articleId={reportModalState.articleId} currentUserId={user.id!} apiBaseUrl={apiBaseUrl} colors={colors} />
+            <ReportModal isOpen={reportModalState.isOpen} onClose={() => setReportModalState({ isOpen: false })} sourceId={reportModalState.sourceId} articleId={reportModalState.articleId} currentUserId={user.id!} colors={colors} />
 
             <div style={{padding: '24px 20px 20px 20px'}}>
                 <h1 style={{fontSize: '28px', fontWeight: '800', margin: '0 0 6px 0', color: colors.text, letterSpacing: '-0.5px'}}>
@@ -450,11 +345,11 @@ export default function App() {
             </div>
 
             <div style={{padding: '0 20px'}}>
-                {activeTab === 'moderation' && <ModeratorDashboard moderatorId={user.id!} apiBaseUrl={apiBaseUrl} colors={colors} />}
-                {activeTab === 'interests' && <InterestsTab lang={lang} colors={colors} apiBaseUrl={apiBaseUrl} interestTags={interestTags} setInterestTags={setInterestTags} isEditingInterests={isEditingInterests} setIsEditingInterests={setIsEditingInterests} recommendations={recommendations} handleAddSource={handleAddSource} />}
-                {activeTab === 'sources' && <SourcesTab lang={lang} colors={colors} apiBaseUrl={apiBaseUrl} sources={sources} handleAddSource={() => handleAddSource()} handleRemoveSource={handleRemoveSource} toggleReadAll={toggleReadAll} setReportModalState={setReportModalState} />}
-                {activeTab === 'insights' && globalInsights && <InsightsTab lang={lang} colors={colors} apiBaseUrl={apiBaseUrl} globalInsights={globalInsights} userInsights={userInsights} dauStats={dauStats} topSources={topSources} />}
-                {activeTab === 'settings' && <SettingsTab lang={lang} colors={colors} strictMode={strictMode} dailySummary={dailySummary} weeklySummary={weeklySummary} toggleStrictMode={toggleStrictMode} toggleDailySummary={toggleDailySummary} toggleWeeklySummary={toggleWeeklySummary} changeLanguage={changeLanguage} />}
+                {activeTab === 'moderation' && <ModeratorDashboard moderatorId={user.id!} colors={colors} />}
+                {activeTab === 'interests' && <InterestsTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} interestTags={interestTags} setInterestTags={setInterestTags} isEditingInterests={isEditingInterests} setIsEditingInterests={setIsEditingInterests} recommendations={recommendations} handleAddSource={handleAddSource} />}
+                {activeTab === 'sources' && <SourcesTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} sources={sources} handleAddSource={() => handleAddSource()} handleRemoveSource={handleRemoveSource} toggleReadAll={toggleReadAllState} setReportModalState={setReportModalState} />}
+                {activeTab === 'insights' && globalInsights && <InsightsTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} globalInsights={globalInsights} userInsights={userInsights} dauStats={dauStats} topSources={topSources} />}
+                {activeTab === 'settings' && <SettingsTab lang={lang} colors={colors} strictMode={strictMode} dailySummary={dailySummary} weeklySummary={weeklySummary} toggleStrictMode={toggleStrictModeState} toggleDailySummary={toggleDailySummaryState} toggleWeeklySummary={toggleWeeklySummaryState} changeLanguage={changeLanguageState} />}
             </div>
             
             <style>{`

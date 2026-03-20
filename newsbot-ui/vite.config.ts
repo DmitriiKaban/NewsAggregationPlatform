@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
   base: '/NewsAggregationPlatform/',
+  
+  envDir: path.resolve(__dirname, '../common'), 
+  
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { api } from '../services/api';
 
 interface Report {
     id: number;
@@ -14,11 +15,10 @@ interface Report {
 
 interface ModeratorDashboardProps {
     moderatorId: number;
-    apiBaseUrl: string;
     colors: any;
 }
 
-export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderatorId, apiBaseUrl, colors }) => {
+export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderatorId, colors }) => {
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -29,15 +29,8 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
 
     const fetchReports = async () => {
         try {
-            const response = await fetch(`${apiBaseUrl}/reports?moderatorId=${moderatorId}`, {
-                headers: { 'ngrok-skip-browser-warning': '69420' }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setReports(Array.isArray(data) ? data : (data?.content || data?.data || []));
-            } else {
-                setError('Unauthorized or unable to fetch reports.');
-            }
+            const data = await api.getReports(moderatorId);
+            setReports(Array.isArray(data) ? data : (data?.content || data?.data || []));
         } catch (err) {
             setError('Network error occurred.');
         } finally {
@@ -47,15 +40,9 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
 
     const updateStatus = async (reportId: number, status: string) => {
         try {
-            const response = await fetch(`${apiBaseUrl}/reports/${reportId}/status?status=${status}&moderatorId=${moderatorId}`, {
-                method: 'PATCH',
-                headers: { 'ngrok-skip-browser-warning': '69420' }
-            });
-            if (response.ok) {
-                setReports(reports.map(r => r.id === reportId ? { ...r, status: status as any } : r));
-            }
+            await api.updateReportStatus(reportId, status, moderatorId);
+            setReports(reports.map(r => r.id === reportId ? { ...r, status: status as any } : r));
         } catch (err) {
-            console.error('Failed to update status', err);
             alert('Failed to update status. Please try again.');
         }
     };
@@ -91,7 +78,6 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
         }
     };
 
-    // FIX: Increased icon size to 18x18, added flexShrink so it doesn't get squished, and adjusted margins
     const LinkIcon = () => (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.6, marginTop: '2px' }}>
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -111,7 +97,6 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
         if (report.article) {
             return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {/* FIX: Changed alignment to flex-start so icon stays at top if text wraps */}
                     <a href={report.article.url} target="_blank" rel="noopener noreferrer" style={{ color: colors.link, textDecoration: 'none', fontWeight: '700', fontSize: '15px', lineHeight: '1.4', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                             {report.article.title || `Article #${report.article.id}`}
@@ -187,7 +172,6 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                             background: colors.secondaryBg, borderRadius: '16px', 
                             border: `1px solid ${colors.hint}20`, display: 'flex', flexDirection: 'column', overflow: 'hidden'
                         }}>
-                            {/* Card Header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${colors.hint}15` }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ 
@@ -205,7 +189,6 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                                 <span style={{ fontSize: '12px', color: colors.hint, fontWeight: '600' }}>#{report.id}</span>
                             </div>
 
-                            {/* Card Body */}
                             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                 <div>
                                     <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reason</span>
@@ -243,7 +226,6 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                                 </div>
                             </div>
 
-                            {/* Card Footer / Actions */}
                             {report.status === 'PENDING' && (
                                 <div style={{ display: 'flex', gap: '12px', padding: '0 20px 20px 20px' }}>
                                     <button className="mod-btn" onClick={() => updateStatus(report.id, 'DISMISSED')} style={{

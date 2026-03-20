@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { api } from '../services/api';
 
 interface ReportModalProps {
     isOpen: boolean;
@@ -6,7 +7,6 @@ interface ReportModalProps {
     articleId?: number;
     sourceId?: number;
     currentUserId: number;
-    apiBaseUrl: string;
     colors: any;
 }
 
@@ -19,7 +19,7 @@ const REPORT_REASONS = [
     { value: 'OTHER', label: 'Other' }
 ];
 
-export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, articleId, sourceId, currentUserId, apiBaseUrl, colors }) => {
+export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, articleId, sourceId, currentUserId, colors }) => {
     const [selectedReason, setSelectedReason] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,30 +38,16 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, artic
 
         setIsSubmitting(true);
         try {
-            const response = await fetch(`${apiBaseUrl}/reports`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': '69420'
-                },
-                body: JSON.stringify({
-                    articleId,
-                    sourceId,
-                    reporterId: currentUserId,
-                    reason: selectedReason
-                })
+            await api.submitReport({
+                articleId,
+                sourceId,
+                reporterId: currentUserId,
+                reason: selectedReason
             });
-
-            if (response.ok) {
-                alert('Thank you, your report has been submitted.');
-                onClose();
-            } else {
-                const data = await response.json().catch(() => ({}));
-                alert(data.error || 'Failed to submit report. Please try again.');
-            }
-        } catch (error) {
-            console.error('Error submitting report:', error);
-            alert('Network error. Please try again.');
+            alert('Thank you, your report has been submitted.');
+            onClose();
+        } catch (error: any) {
+            alert(error.message || 'Failed to submit report. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
