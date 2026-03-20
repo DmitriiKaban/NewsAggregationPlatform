@@ -14,14 +14,11 @@ public class MessageService {
     private final MessageSource messageSource;
 
     public String get(String key, Language language) {
-        Locale locale = new Locale(language.getCode());
-
-        return messageSource.getMessage(key, null, "Missing translation: " + key, locale);
+        return messageSource.getMessage(key, null, "Missing translation: " + key, Locale.forLanguageTag(language.getCode()));
     }
 
     public String get(String key, Language language, Object... args) {
-        Locale locale = new Locale(language.getCode());
-
-        return messageSource.getMessage(key, args, "Missing translation: " + key, locale);
+        return messageSource.getMessage(key, args, "Missing translation: " + key, Locale.forLanguageTag(language.getCode()));
     }
+
 }

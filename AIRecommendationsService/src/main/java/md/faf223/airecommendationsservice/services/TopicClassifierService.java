@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,7 +18,7 @@ public class TopicClassifierService {
     private final Map<String, float[]> topicCentroids = new HashMap<>();
 
     @PostConstruct
-    public void initializeTopicVectors() throws Exception {
+    public void initializeTopicVectors() {
         log.info("Initializing semantic topic vectors...");
         Map<String, String> topics = Map.ofEntries(
                 Map.entry("Technology", "Technology, software development, gadgets, cybersecurity, programming, hardware, consumer electronics, smartphones, artificial intelligence, machine learning, ChatGPT, neural networks, LLMs, generative AI, robotics, OpenAI"),
@@ -36,11 +37,19 @@ public class TopicClassifierService {
         );
 
         for (Map.Entry<String, String> entry : topics.entrySet()) {
-            topicCentroids.put(entry.getKey(), embeddingService.encode("passage: " + entry.getValue()));
+            try {
+                topicCentroids.put(entry.getKey(), embeddingService.encode("passage: " + entry.getValue()));
+            } catch (Exception e) {
+                log.error("Failed to initialize vector for topic {}", entry.getKey(), e);
+            }
         }
     }
 
     public String predictTopic(float[] articleVector) {
+        if (articleVector == null || articleVector.length == 0) {
+            return "General News";
+        }
+
         String bestTopic = "General News";
         double highest = -1.0;
 
@@ -55,7 +64,14 @@ public class TopicClassifierService {
     }
 
     private double calculateCosineSimilarity(float[] a, float[] b) {
-        double dot = 0.0, normA = 0.0, normB = 0.0;
+        if (a.length != b.length) {
+            return 0.0;
+        }
+
+        double dot = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+
         for (int i = 0; i < a.length; i++) {
             dot += a[i] * b[i];
             normA += a[i] * a[i];
@@ -65,11 +81,7 @@ public class TopicClassifierService {
     }
 
     public String toVectorString(float[] vector) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < vector.length; i++) {
-            if (i > 0) sb.append(',');
-            sb.append(vector[i]);
-        }
-        return sb.append("]").toString();
+        return Arrays.toString(vector);
     }
+
 }
