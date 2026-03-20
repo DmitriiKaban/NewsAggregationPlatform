@@ -16,7 +16,8 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || `HTTP error ${response.status}`);
+        const errorMessage = errorData?.message || errorData?.error || errorData?.detail || `HTTP error ${response.status}`;
+        throw new Error(errorMessage);
     }
 
     const text = await response.text();
