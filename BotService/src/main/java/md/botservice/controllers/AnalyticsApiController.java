@@ -56,12 +56,14 @@ public class AnalyticsApiController {
         Double ctr = analyticsEventService.getUserCtr(userId);
         Double avgSession = analyticsEventService.getUserAverageArticlesPerSession(userId);
         Double entropy = analyticsEventService.getUserTopicEntropy(userId);
+        List<TopicReadProjection> topPersonalTopics = analyticsEventService.getTopReadTopics(userId);
 
         UserAnalyticsDashboardDto dashboard = new UserAnalyticsDashboardDto(
                 totalRead,
                 ctr,
                 avgSession,
-                entropy
+                entropy,
+                topPersonalTopics
         );
 
         log.info("User stats: " + dashboard);

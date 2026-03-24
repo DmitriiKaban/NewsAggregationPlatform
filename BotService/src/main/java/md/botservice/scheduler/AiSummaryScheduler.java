@@ -23,7 +23,6 @@ public class AiSummaryScheduler {
     private static final String SUMMARY_REQUEST_TOPIC = "summary.generate.request";
 
     @Scheduled(cron = "0 0 20 * * *")
-    @EventListener(ApplicationReadyEvent.class)
     public void requestDailySummaries() {
         log.info("Triggering Daily AI Summaries...");
         List<User> users = userRepository.findByDailySummaryEnabledTrue();

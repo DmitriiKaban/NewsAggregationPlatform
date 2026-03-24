@@ -284,6 +284,7 @@ public class CallbackQueryHandler {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
             message.setText(messageService.get("sources.removed", lang));
+            message.setParseMode("HTML");
 
             sender.execute(message);
         } catch (Exception e) {

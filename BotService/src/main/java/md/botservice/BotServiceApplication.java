@@ -19,7 +19,7 @@ public class BotServiceApplication {
 	private static void loadEnvVariables() {
 		try {
 			Dotenv dotenv = Dotenv.configure()
-                    .directory("../common")
+                    .directory("common")
 					.filename(".env")
 					.load();
 

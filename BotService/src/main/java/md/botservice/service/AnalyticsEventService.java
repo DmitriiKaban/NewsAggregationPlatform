@@ -44,4 +44,8 @@ public class AnalyticsEventService {
     public Double getUserTopicEntropy(Long userId) {
         return analyticsEventRepository.getUserTopicEntropy(userId);
     }
+
+    public List<TopicReadProjection> getTopReadTopics(Long userId) {
+        return analyticsEventRepository.getTopReadTopics(userId);
+    }
 }

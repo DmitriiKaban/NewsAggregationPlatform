@@ -11,6 +11,7 @@ VALUES
     ('BBC World', 'https://feeds.bbci.co.uk/news/world/rss.xml', 'RSS', 'VERIFIED_MEDIA', true),
     ('The Guardian', 'https://www.theguardian.com/world/rss', 'RSS', 'VERIFIED_MEDIA', true),
     ('Al Jazeera', 'https://www.aljazeera.com/xml/rss/all.xml', 'RSS', 'VERIFIED_MEDIA', true),
+    ('France 24', 'https://www.france24.com/en/rss.xml', 'RSS', 'VERIFIED_MEDIA', true),
 
     -- FINANCE & BUSINESS
     ('CNBC International', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664', 'RSS',
