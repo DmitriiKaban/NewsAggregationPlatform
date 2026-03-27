@@ -34,6 +34,7 @@ kind: Service
 metadata:
   name: tg-bot-service
 spec:
+  type: LoadBalancer
   selector:
     app: tg-bot
   ports:
