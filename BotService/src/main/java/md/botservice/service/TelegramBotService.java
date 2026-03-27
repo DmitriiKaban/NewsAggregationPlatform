@@ -29,6 +29,9 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final StateMessageHandler stateMessageHandler;
     private final String botUsername;
 
+    @Value("${api.base.url:https://donny-subevergreen-agreeably.ngrok-free.dev/api}")
+    private String apiBaseUrl;
+
     public TelegramBotService(
             UserService userService, EventTrackingService eventTrackingService,
             CommandEffectFactory commandFactory,
@@ -129,9 +132,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
         message.setChatId(String.valueOf(event.userId()));
         message.setParseMode("HTML");
 
-        // Build the message using the event data
         String cleanTitle = escapeHtml(event.title());
-        String text = cleanTitle + "\n\n<a href=\"" + event.url() + "\">Read More</a>";
+
+        String trackingUrl = apiBaseUrl + "/r/" + event.userId() + "/" + event.postId();
+
+        String text = cleanTitle + "\n\n<a href=\"" + trackingUrl + "\">Read More</a>";
         message.setText(text);
 
         if (reactionKeyboard != null) {
@@ -140,14 +145,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         try {
             execute(message);
-
             eventTrackingService.trackArticleShown(
                     event.userId(),
                     event.postId(),
                     event.sourceName(),
                     event.topic()
             );
-
         } catch (TelegramApiException e) {
             log.error("Failed to send news alert to user {}", event.userId(), e);
         }

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tg-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tg-bot
+  template:
+    metadata:
+      labels:
+        app: tg-bot
+    spec:
+      containers:
+        - name: tg-bot
+          image: dimaubuntu/newsbot-tg-bot:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8016
+          env:
+            - name: POSTGRES_HOST
+              value: "news-postgres"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: KAFKA_BROKER
+              value: "news-kafka:9092"
+          envFrom:
+            - secretRef:
+                name: newsbot-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tg-bot-service
+spec:
+  selector:
+    app: tg-bot
+  ports:
+    - port: 8016
+      targetPort: 8016

@@ -7,6 +7,7 @@ import redis
 import psycopg2
 from bs4 import BeautifulSoup
 from kafka import KafkaProducer
+from kafka.errors import NoBrokersAvailable
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
@@ -48,15 +49,33 @@ ITEMS_SCRAPED = Gauge('scraper_items_last_run', 'Number of items found in the la
 MAX_RSS_THREADS = 5
 MAX_ARTICLE_THREADS = 3
 
+producer = None
+max_retries = 12 # Will wait for up to 1 minute (12 * 5 seconds)
+retries = 0
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
 }
 
-producer = KafkaProducer(
-    bootstrap_servers=[KAFKA_BROKER],
-    value_serializer=lambda x: json.dumps(x).encode("utf-8"),
-)
+print(f"Attempting to connect to Kafka at {KAFKA_BROKER}...")
+
+while producer is None and retries < max_retries:
+    try:
+        producer = KafkaProducer(
+            bootstrap_servers=[KAFKA_BROKER],
+            value_serializer=lambda v: json.dumps(v).encode('utf-8') # Adjust to your serializer
+        )
+        print("✅ Successfully connected to Kafka!")
+    except NoBrokersAvailable:
+        print(f"⏳ Kafka not ready yet. Retrying in 5 seconds... ({retries + 1}/{max_retries})")
+        time.sleep(5)
+        retries += 1
+
+if producer is None:
+    raise Exception("Fatal: Could not connect to Kafka after 1 minute of retries.")
+
+
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 def get_sources_from_db():

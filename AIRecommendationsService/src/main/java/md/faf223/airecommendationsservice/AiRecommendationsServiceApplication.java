@@ -17,22 +17,35 @@ public class AiRecommendationsServiceApplication {
     }
 
     private static void loadEnvVariables() {
-        try {
-            Dotenv dotenv = Dotenv.configure()
-//                    .directory("../common")
-                    .directory("common")
-                    .filename(".env")
-                    .load();
+        String[] pathsToTry = {"../common", "common"};
+        boolean loaded = false;
 
-            dotenv.entries().forEach(entry -> {
-                System.setProperty(entry.getKey(), entry.getValue());
-            });
+        for (String path : pathsToTry) {
+            try {
+                java.io.File dir = new java.io.File(path);
+                if (dir.exists() && dir.isDirectory()) {
 
-            log.info("Successfully loaded .env variables!");
-        } catch (Exception e) {
-            log.error("Failed to load .env file. Check the path!");
-            e.printStackTrace();
-            System.exit(1);
+                    Dotenv dotenv = Dotenv.configure()
+                            .directory(path)
+                            .filename(".env")
+                            .ignoreIfMissing()
+                            .load();
+
+                    dotenv.entries().forEach(entry -> {
+                        System.setProperty(entry.getKey(), entry.getValue());
+                    });
+
+                    log.info("Successfully loaded .env variables from: {}", path);
+                    loaded = true;
+                    break;
+                }
+            } catch (Exception e) {
+                log.debug("Could not load .env from {}, trying next path...", path);
+            }
+        }
+
+        if (!loaded) {
+            log.info("No local .env file found. Relying on OS environment variables");
         }
     }
 

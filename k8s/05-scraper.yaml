@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scraper
+  template:
+    metadata:
+      labels:
+        app: scraper
+    spec:
+      containers:
+        - name: scraper
+          image: dimaubuntu/newsbot-scraper:v2
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_HOST
+              value: "news-postgres"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: KAFKA_BROKER
+              value: "news-kafka:9092"
+            - name: REDIS_HOST
+              value: "news-redis-master"
+            - name: REDIS_PORT
+              value: "6379"
+          envFrom:
+            - secretRef:
+                name: newsbot-secrets
