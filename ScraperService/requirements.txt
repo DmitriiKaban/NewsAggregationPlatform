@@ -7,5 +7,9 @@ python-dotenv
 redis
 python-dateutil
 telethon
-psycopg2
+psycopg2-binary
 prometheus-client
+
+pytest
+pytest-mock
+pytest-cov
