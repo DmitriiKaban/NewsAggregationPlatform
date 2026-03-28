@@ -33,6 +33,8 @@ BotService/target
 newsbot-ui/dist/
 newsbot-ui/node_modules/
 ScraperService/newsbot_session.session
+ScraperService/.pytest_cache
+ScraperService/__pycache__
 
 
 # Java/Spring specific ignores
