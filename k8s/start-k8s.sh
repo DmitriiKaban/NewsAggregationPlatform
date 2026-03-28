@@ -14,6 +14,6 @@ Start-Sleep -s 10
 
 # 3. Launch Ngrok in a separate window
 Write-Host "Launching Ngrok Tunnel..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "ngrok http 8016"
+Start-Process powershell -ArgumentList "ngrok http 80"
 
 Write-Host "✅ Run 'kubectl get pods' to monitor progress." -ForegroundColor White
