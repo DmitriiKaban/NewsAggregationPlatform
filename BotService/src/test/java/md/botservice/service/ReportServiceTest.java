@@ -64,8 +64,36 @@ class ReportServiceTest {
     }
 
     @Test
+    void submitReport_ArticleNotFound_ThrowsException() {
+        ReportRequest request = createReportRequest(1L, 10L, null, null, ReportReason.SPAM);
+        when(articleRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> reportService.submitReport(request));
+    }
+
+    @Test
+    void submitReport_ArticleAlreadyBanned_ThrowsException() {
+        ReportRequest request = createReportRequest(1L, 10L, null, null, ReportReason.SPAM);
+
+        Article bannedArticle = new Article();
+        bannedArticle.setId(10L);
+        bannedArticle.setBanned(true);
+
+        when(articleRepository.findById(10L)).thenReturn(Optional.of(bannedArticle));
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> reportService.submitReport(request));
+        assertTrue(exception.getMessage().contains("already banned"));
+    }
+
+    @Test
     void submitReport_DuplicateArticleReport_ThrowsException() {
         ReportRequest request = createReportRequest(1L, 10L, null, null, ReportReason.SPAM);
+
+        Article validArticle = new Article();
+        validArticle.setId(10L);
+        validArticle.setBanned(false);
+
+        when(articleRepository.findById(10L)).thenReturn(Optional.of(validArticle));
         when(reportRepository.existsByReporterIdAndArticleId(1L, 10L)).thenReturn(true);
 
         assertThrows(IllegalStateException.class, () -> reportService.submitReport(request));
@@ -81,7 +109,7 @@ class ReportServiceTest {
 
     @Test
     void submitReport_ReporterNotFound_ThrowsException() {
-        ReportRequest request = createReportRequest(99L, 10L, null, null, ReportReason.SPAM);
+        ReportRequest request = createReportRequest(99L, null, null, null, ReportReason.SPAM);
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> reportService.submitReport(request));
@@ -90,6 +118,12 @@ class ReportServiceTest {
     @Test
     void submitReport_Success_SavesReport() {
         ReportRequest request = createReportRequest(1L, 10L, 20L, 30L, ReportReason.HATE_SPEECH);
+
+        Article validArticle = new Article();
+        validArticle.setId(10L);
+        validArticle.setBanned(false);
+
+        when(articleRepository.findById(10L)).thenReturn(Optional.of(validArticle));
         when(reportRepository.existsByReporterIdAndArticleId(1L, 10L)).thenReturn(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(reporterUser));
 
@@ -150,17 +184,53 @@ class ReportServiceTest {
     }
 
     @Test
-    void updateReportStatus_Success() {
+    void updateReportStatus_Success_NonArticle() {
         when(userRepository.findById(2L)).thenReturn(Optional.of(moderatorUser));
         Report report = new Report();
+        report.setId(100L);
         report.setStatus(ReportStatus.PENDING);
         when(reportRepository.findById(100L)).thenReturn(Optional.of(report));
         when(reportRepository.save(any(Report.class))).thenReturn(report);
 
+        Report result = reportService.updateReportStatus(100L, ReportStatus.DISMISSED, 2L);
+
+        assertEquals(ReportStatus.DISMISSED, result.getStatus());
+        verify(reportRepository).save(report);
+        verify(articleRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    void updateReportStatus_ResolveArticleReport_BansArticleAndResolvesOtherReports() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(moderatorUser));
+
+        Report mainReport = new Report();
+        mainReport.setId(100L);
+        mainReport.setArticleId(10L);
+        mainReport.setStatus(ReportStatus.PENDING);
+
+        Article article = new Article();
+        article.setId(10L);
+        article.setBanned(false);
+
+        Report pendingReport1 = new Report();
+        pendingReport1.setId(101L);
+        pendingReport1.setArticleId(10L);
+        pendingReport1.setStatus(ReportStatus.PENDING);
+
+        when(reportRepository.findById(100L)).thenReturn(Optional.of(mainReport));
+        when(articleRepository.findById(10L)).thenReturn(Optional.of(article));
+        when(reportRepository.findByArticleIdAndStatus(10L, ReportStatus.PENDING)).thenReturn(List.of(mainReport, pendingReport1));
+        when(reportRepository.save(any(Report.class))).thenReturn(mainReport);
+
         Report result = reportService.updateReportStatus(100L, ReportStatus.RESOLVED, 2L);
 
         assertEquals(ReportStatus.RESOLVED, result.getStatus());
-        verify(reportRepository).save(report);
+        assertTrue(article.isBanned());
+        assertEquals(ReportStatus.RESOLVED, pendingReport1.getStatus());
+
+        verify(articleRepository).save(article);
+        verify(reportRepository).saveAll(anyList());
+        verify(reportRepository).save(mainReport);
     }
 
 }
