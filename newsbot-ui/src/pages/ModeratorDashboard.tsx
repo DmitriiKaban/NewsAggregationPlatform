@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { tr, type Language } from '../i18n/translations';
 
 interface Report {
     id: number;
@@ -16,12 +17,15 @@ interface Report {
 interface ModeratorDashboardProps {
     moderatorId: number;
     colors: any;
+    lang: Language;
 }
 
-export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderatorId, colors }) => {
+export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderatorId, colors, lang }) => {
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    const [filterStatus, setFilterStatus] = useState<string>('PENDING');
 
     useEffect(() => {
         fetchReports();
@@ -32,7 +36,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
             const data = await api.getReports(moderatorId);
             setReports(Array.isArray(data) ? data : (data?.content || data?.data || []));
         } catch (err) {
-            setError('Network error occurred.');
+            setError(tr('mod.error.network', lang));
         } finally {
             setLoading(false);
         }
@@ -43,7 +47,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
             await api.updateReportStatus(reportId, status, moderatorId);
             setReports(reports.map(r => r.id === reportId ? { ...r, status: status as any } : r));
         } catch (err) {
-            alert('Failed to update status. Please try again.');
+            alert(tr('mod.error.update', lang));
         }
     };
 
@@ -99,14 +103,14 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <a href={report.article.url} target="_blank" rel="noopener noreferrer" style={{ color: colors.link, textDecoration: 'none', fontWeight: '700', fontSize: '15px', lineHeight: '1.4', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                            {report.article.title || `Article #${report.article.id}`}
+                            {report.article.title || `${tr('mod.article', lang)} #${report.article.id}`}
                         </span>
                         <LinkIcon />
                     </a>
                     {sourceLink && (
                         <span style={{ color: colors.hint, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                            via {sourceLink}
+                            {tr('mod.via', lang)} {sourceLink}
                         </span>
                     )}
                 </div>
@@ -116,14 +120,14 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
         if (report.articleId) {
             return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontWeight: '600', color: colors.text }}>Article #{report.articleId}</span>
-                    {sourceLink && <span style={{ color: colors.hint, fontSize: '13px' }}>(via {sourceLink})</span>}
+                    <span style={{ fontWeight: '600', color: colors.text }}>{tr('mod.article', lang)} #{report.articleId}</span>
+                    {sourceLink && <span style={{ color: colors.hint, fontSize: '13px' }}>({tr('mod.via', lang)} {sourceLink})</span>}
                 </div>
             );
         }
 
         if (sourceLink) return sourceLink;
-        return <span style={{ color: colors.text }}>Source #{report.sourceId || 'Unknown'}</span>;
+        return <span style={{ color: colors.text }}>{tr('mod.source', lang)} #{report.sourceId || 'Unknown'}</span>;
     };
 
     if (loading) return (
@@ -131,13 +135,18 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite', marginRight: '8px' }}>
                 <line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
             </svg>
-            Loading reports...
+            {tr('mod.loading', lang)}
         </div>
     );
 
     if (error) return <div style={{ textAlign: 'center', padding: '40px', color: colors.danger, fontWeight: '600', backgroundColor: `${colors.danger}15`, borderRadius: '12px' }}>{error}</div>;
 
     const validReports = Array.isArray(reports) ? reports : [];
+    
+    const filteredReports = validReports.filter(report => {
+        if (filterStatus === 'ALL') return true;
+        return report.status === filterStatus;
+    });
 
     return (
         <div style={{ animation: 'fadeIn 0.3s ease-in-out', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '24px' }}>
@@ -149,25 +158,57 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                 .mod-btn { transition: filter 0.2s ease, transform 0.1s ease; }
                 .mod-btn:hover { filter: brightness(1.1); }
                 .mod-btn:active { transform: scale(0.97); }
+                
+                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: '8px', borderBottom: `1px solid ${colors.hint}20` }}>
-                <h3 style={{ fontSize: '22px', fontWeight: '800', margin: 0, color: colors.text }}>Moderator Dashboard</h3>
-                <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '600', backgroundColor: `${colors.hint}15`, padding: '4px 10px', borderRadius: '12px' }}>
-                    {validReports.length} {validReports.length === 1 ? 'Report' : 'Reports'}
-                </span>
+            <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: '8px', borderBottom: `1px solid ${colors.hint}20` }}>
+                    <h3 style={{ fontSize: '22px', fontWeight: '800', margin: 0, color: colors.text }}>{tr('mod.title', lang)}</h3>
+                    <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '600', backgroundColor: `${colors.hint}15`, padding: '4px 10px', borderRadius: '12px' }}>
+                        {tr('mod.reports_count', lang, { count: filteredReports.length })}
+                    </span>
+                </div>
+
+                <div className="hide-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingTop: '12px', WebkitOverflowScrolling: 'touch' }}>
+                    {['ALL', 'PENDING', 'RESOLVED', 'DISMISSED'].map(status => (
+                        <button
+                            key={status}
+                            onClick={() => setFilterStatus(status)}
+                            style={{
+                                padding: '6px 14px',
+                                borderRadius: '16px',
+                                border: `1px solid ${filterStatus === status ? colors.button : colors.hint + '40'}`,
+                                background: filterStatus === status ? colors.button : 'transparent',
+                                color: filterStatus === status ? colors.buttonText : colors.text,
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {tr(`mod.filter.${status}`, lang)}
+                        </button>
+                    ))}
+                </div>
             </div>
             
-            {validReports.length === 0 ? (
+            {filteredReports.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', color: colors.hint, fontWeight: '500', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', backgroundColor: colors.secondaryBg, borderRadius: '16px' }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
-                    <span>No pending reports. Great job!</span>
+                    <span>
+                        {filterStatus === 'PENDING' 
+                            ? tr('mod.empty.pending', lang) 
+                            : tr('mod.empty.filtered', lang, { status: tr(`mod.filter.${filterStatus}`, lang).toLowerCase() })}
+                    </span>
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {validReports.map((report) => (
+                    {filteredReports.map((report) => (
                         <div key={report.id || Math.random()} className="mod-card" style={{ 
                             background: colors.secondaryBg, borderRadius: '16px', 
                             border: `1px solid ${colors.hint}20`, display: 'flex', flexDirection: 'column', overflow: 'hidden'
@@ -176,10 +217,14 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ 
                                         padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px',
-                                        background: report.status === 'PENDING' ? `${colors.chartBar || '#f59e0b'}20` : `${colors.success}20`,
-                                        color: report.status === 'PENDING' ? (colors.chartBar || '#f59e0b') : colors.success
+                                        background: report.status === 'PENDING' ? `${colors.chartBar || '#f59e0b'}20` : 
+                                                    report.status === 'RESOLVED' ? `${colors.success}20` : 
+                                                    `${colors.hint}20`,
+                                        color: report.status === 'PENDING' ? (colors.chartBar || '#f59e0b') : 
+                                               report.status === 'RESOLVED' ? colors.success : 
+                                               colors.hint
                                     }}>
-                                        {report.status || 'UNKNOWN'}
+                                        {report.status ? tr(`mod.filter.${report.status}`, lang).toUpperCase() : 'UNKNOWN'}
                                     </span>
                                     <span style={{ fontSize: '12px', color: colors.hint, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -191,9 +236,9 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
 
                             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                 <div>
-                                    <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reason</span>
+                                    <span style={{ fontSize: '13px', color: colors.hint, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{tr('mod.card.reason', lang)}</span>
                                     <h4 style={{ margin: '4px 0 0 0', fontSize: '18px', fontWeight: '700', color: colors.danger }}>
-                                        {(report.reason || 'UNKNOWN REASON').replace(/_/g, ' ')}
+                                        {report.reason ? tr(`report.reason.${report.reason}`, lang) : 'UNKNOWN REASON'}
                                     </h4>
                                 </div>
 
@@ -203,7 +248,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <span style={{ fontSize: '12px', color: colors.hint, fontWeight: '600', display: 'block', marginBottom: '2px' }}>Reported Content</span>
+                                            <span style={{ fontSize: '12px', color: colors.hint, fontWeight: '600', display: 'block', marginBottom: '2px' }}>{tr('mod.card.reported_content', lang)}</span>
                                             {renderTarget(report)}
                                         </div>
                                     </div>
@@ -215,11 +260,11 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                         </div>
                                         <div>
-                                            <span style={{ fontSize: '12px', color: colors.hint, fontWeight: '600', display: 'block', marginBottom: '2px' }}>Reported By</span>
+                                            <span style={{ fontSize: '12px', color: colors.hint, fontWeight: '600', display: 'block', marginBottom: '2px' }}>{tr('mod.card.reported_by', lang)}</span>
                                             <span style={{ fontSize: '14px', color: colors.text, fontWeight: '500' }}>
                                                 {report.reporter ? 
                                                     (typeof report.reporter === 'object' ? `@${report.reporter.username || report.reporter.id}` : `User ID: ${report.reporter}`) 
-                                                    : 'Anonymous'}
+                                                    : tr('mod.card.anonymous', lang)}
                                             </span>
                                         </div>
                                     </div>
@@ -234,15 +279,26 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({ moderato
                                         display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px'
                                     }}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                                        Dismiss
+                                        {tr('mod.btn.dismiss', lang)}
                                     </button>
-                                    <button className="mod-btn" onClick={() => updateStatus(report.id, 'RESOLVED')} style={{
-                                        flex: 1, padding: '12px', background: colors.button, color: colors.buttonText,
+                                    <button className="mod-btn" onClick={() => {
+                                        const isArticleReport = !!report.articleId || !!report.article;
+                                        if (isArticleReport) {
+                                            if (window.confirm(tr('mod.confirm.ban_article', lang))) {
+                                                updateStatus(report.id, 'RESOLVED');
+                                            }
+                                        } else {
+                                            updateStatus(report.id, 'RESOLVED');
+                                        }
+                                    }} style={{
+                                        flex: 1, padding: '12px', 
+                                        background: (report.articleId || report.article) ? colors.danger : colors.button, 
+                                        color: '#ffffff',
                                         border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer',
-                                        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px'
+                                        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', textAlign: 'center'
                                     }}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                        Resolve
+                                        {report.articleId || report.article ? tr('mod.btn.resolve_ban', lang) : tr('mod.btn.resolve', lang)}
                                     </button>
                                 </div>
                             )}

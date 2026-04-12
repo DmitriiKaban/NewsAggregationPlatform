@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS articles (
                                         id BIGSERIAL PRIMARY KEY,
                                         title TEXT NOT NULL,
                                         url TEXT UNIQUE NOT NULL,
+                                        is_banned BOOLEAN DEFAULT FALSE NOT NULL,
                                         summary TEXT,
                                         content TEXT,
                                         source_name VARCHAR(255),

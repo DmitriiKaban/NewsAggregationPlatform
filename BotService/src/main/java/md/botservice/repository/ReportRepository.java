@@ -14,5 +14,6 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     List<Report> findByStatusOrderByReportedAtDesc(ReportStatus status);
     boolean existsByReporterIdAndArticleId(Long reporterId, Long articleId);
     boolean existsByReporterIdAndSourceIdAndArticleIdIsNull(Long reporterId, Long sourceId);
+    List<Report> findByArticleIdAndStatus(Long articleId, ReportStatus status);
 
 }

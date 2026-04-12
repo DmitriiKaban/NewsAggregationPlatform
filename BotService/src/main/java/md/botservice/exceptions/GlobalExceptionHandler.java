@@ -53,6 +53,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             IllegalArgumentException.class,
+            IllegalStateException.class,
             HttpMessageNotReadableException.class,
             MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class

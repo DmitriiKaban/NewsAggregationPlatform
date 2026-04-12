@@ -17,7 +17,7 @@ public class CorsConfig {
                         .allowedOrigins(
                                 "https://dmitriikaban.github.io"
                         )
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                         .allowedHeaders("*")
                         .allowCredentials(false)
                         .maxAge(3600);

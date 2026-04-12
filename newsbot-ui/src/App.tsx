@@ -345,7 +345,7 @@ export default function App() {
             </div>
 
             <div style={{padding: '0 20px'}}>
-                {activeTab === 'moderation' && <ModeratorDashboard moderatorId={user.id!} colors={colors} />}
+                {activeTab === 'moderation' && <ModeratorDashboard moderatorId={user.id!} colors={colors} lang={lang} />}
                 {activeTab === 'interests' && <InterestsTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} interestTags={interestTags} setInterestTags={setInterestTags} isEditingInterests={isEditingInterests} setIsEditingInterests={setIsEditingInterests} recommendations={recommendations} handleAddSource={handleAddSource} />}
                 {activeTab === 'sources' && <SourcesTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} sources={sources} handleAddSource={() => handleAddSource()} handleRemoveSource={handleRemoveSource} toggleReadAll={toggleReadAllState} setReportModalState={setReportModalState} />}
                 {activeTab === 'insights' && globalInsights && <InsightsTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} globalInsights={globalInsights} userInsights={userInsights} dauStats={dauStats} topSources={topSources} />}

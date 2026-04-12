@@ -22,4 +22,7 @@ public class Article {
     @Column(nullable = false, unique = true, columnDefinition = "TEXT")
     private String url;
 
+    @Column(nullable = false)
+    private boolean isBanned = false;
+
 }

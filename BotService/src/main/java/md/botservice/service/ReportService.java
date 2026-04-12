@@ -3,6 +3,7 @@ package md.botservice.service;
 import lombok.RequiredArgsConstructor;
 import md.botservice.dto.ReportRequest;
 import md.botservice.dto.ReportResponse;
+import md.botservice.models.Article;
 import md.botservice.models.Report;
 import md.botservice.models.ReportStatus;
 import md.botservice.models.User;
@@ -32,6 +33,13 @@ public class ReportService {
         }
 
         if (request.getArticleId() != null) {
+            Article article = articleRepository.findById(request.getArticleId())
+                    .orElseThrow(() -> new IllegalArgumentException("Article not found"));
+
+            if (article.isBanned()) {
+                throw new IllegalStateException("This article is already banned and cannot be reported again.");
+            }
+
             if (reportRepository.existsByReporterIdAndArticleId(request.getReporterId(), request.getArticleId())) {
                 throw new IllegalStateException("You have already reported this article.");
             }
@@ -109,6 +117,22 @@ public class ReportService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
 
         report.setStatus(status);
+
+        if (status == ReportStatus.RESOLVED && report.getArticleId() != null) {
+            articleRepository.findById(report.getArticleId()).ifPresent(article -> {
+                article.setBanned(true);
+                articleRepository.save(article);
+            });
+
+            List<Report> pendingReportsForArticle = reportRepository.findByArticleIdAndStatus(report.getArticleId(), ReportStatus.PENDING);
+            for (Report pendingReport : pendingReportsForArticle) {
+                if (!pendingReport.getId().equals(report.getId())) {
+                    pendingReport.setStatus(ReportStatus.RESOLVED);
+                }
+            }
+            reportRepository.saveAll(pendingReportsForArticle);
+        }
+
         return reportRepository.save(report);
     }
 
