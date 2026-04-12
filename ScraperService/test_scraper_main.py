@@ -96,7 +96,7 @@ class TestScraperMain(unittest.TestCase):
     def test_process_single_entry(self, mock_send, mock_extract, mock_processed):
         entry = MagicMock()
         entry.link = "http://test.com"
-        entry.published = datetime.now(timezone.utc).isoformat()
+        entry.published = "Mon, 12 Apr 2026 12:00:00 EST"
         entry.title = "Test"
         entry.get.return_value = "Summary"
 

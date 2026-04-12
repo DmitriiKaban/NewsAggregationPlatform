@@ -49,6 +49,17 @@ ITEMS_SCRAPED = Gauge('scraper_items_last_run', 'Number of items found in the la
 MAX_RSS_THREADS = 5
 MAX_ARTICLE_THREADS = 3
 
+# Common timezone mappings (Offset in seconds from UTC)
+TZINFOS = {
+    "EST": -18000, "EDT": -14400,
+    "CST": -21600, "CDT": -18000,
+    "MST": -25200, "MDT": -21600,
+    "PST": -28800, "PDT": -25200,
+    "GMT": 0,      "UTC": 0,
+    "EET": 7200,   "EEST": 10800,
+    "CET": 3600,   "CEST": 7200
+}
+
 producer = None
 max_retries = 12 # Will wait for up to 1 minute (12 * 5 seconds)
 retries = 0
@@ -64,7 +75,7 @@ while producer is None and retries < max_retries:
     try:
         producer = KafkaProducer(
             bootstrap_servers=[KAFKA_BROKER],
-            value_serializer=lambda v: json.dumps(v).encode('utf-8') # Adjust to your serializer
+            value_serializer=lambda v: json.dumps(v).encode('utf-8')
         )
         print("✅ Successfully connected to Kafka!")
     except NoBrokersAvailable:
@@ -154,7 +165,7 @@ def process_single_entry(entry, source_name):
         return 0
 
     try:
-        pub_date = date_parser.parse(entry.published)
+        pub_date = date_parser.parse(entry.published, tzinfos=TZINFOS)
     except:
         pub_date = datetime.now(timezone.utc)
 
@@ -230,14 +241,12 @@ def job():
     total_rss = 0
     total_tg = 0
 
-    # Scrape multiple RSS feeds concurrently
     if rss_sources:
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_RSS_THREADS) as executor:
             futures = [executor.submit(scrape_rss, source) for source in rss_sources]
             for future in concurrent.futures.as_completed(futures):
                 total_rss += future.result()
 
-    # Telegram scrape sequentially
     if tg_sources:
         if not API_ID or not API_HASH:
             print("Skipped Telegram: Missing Credentials")
