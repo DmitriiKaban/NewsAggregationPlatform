@@ -2,11 +2,13 @@ package md.botservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import md.botservice.dto.SourceDto;
 import md.botservice.dto.TopSourceProjection;
 import md.botservice.exceptions.SourceNotFoundException;
 import md.botservice.exceptions.TelegramChannelNotFoundException;
 import md.botservice.models.Source;
 import md.botservice.models.SourceType;
+import md.botservice.models.TrustLevel;
 import md.botservice.models.User;
 import md.botservice.producers.SourceUpdatePublisher;
 import md.botservice.repository.SourceRepository;
@@ -36,7 +38,7 @@ public class SourceService {
             throw new TelegramChannelNotFoundException("Telegram channel not found or not accessible: " + url);
         }
 
-        Source source = findOrSaveSource(cleanUrl);
+        Source source = findOrSaveSource(cleanUrl, SourceType.TELEGRAM);
 
         user.getSubscriptions().add(source);
         user = userService.updateUser(user);
@@ -53,7 +55,6 @@ public class SourceService {
         user.getSubscriptions().removeIf(s -> s.getUrl().equals(fullUrl));
         user = userService.updateUser(user);
 
-        // Publish to Kafka for AI service
         sourceUpdatePublisher.publishSourceUpdate(user);
 
         log.info("User {} unsubscribed from source: {}", user.getId(), fullUrl);
@@ -67,7 +68,6 @@ public class SourceService {
         user.getSubscriptions().remove(source);
         user = userService.updateUser(user);
 
-        // Publish to Kafka for AI service
         sourceUpdatePublisher.publishSourceUpdate(user);
 
         log.info("User {} unsubscribed from source ID: {}", user.getId(), sourceId);
@@ -76,13 +76,9 @@ public class SourceService {
     private boolean verifyTelegramChannel(String url) {
         try {
             log.info("Verifying Telegram channel: {}", url);
-
-            // Make a HEAD request to check if channel exists
             restTemplate.headForHeaders(url);
-
             log.info("Channel verified: {}", url);
             return true;
-
         } catch (HttpClientErrorException.NotFound e) {
             log.warn("Channel not found: {}", url);
             return false;
@@ -92,12 +88,12 @@ public class SourceService {
         }
     }
 
-    private Source findOrSaveSource(String cleanUrl) {
+    private Source findOrSaveSource(String cleanUrl, SourceType type) {
         return sourceRepository.findByUrl(cleanUrl)
                 .orElseGet(() -> {
                     Source newSource = new Source();
                     newSource.setUrl(cleanUrl);
-                    newSource.setType(SourceType.TELEGRAM);
+                    newSource.setType(type != null ? type : SourceType.TELEGRAM);
                     newSource.setName(extractName(cleanUrl));
                     return sourceRepository.save(newSource);
                 });
@@ -114,13 +110,59 @@ public class SourceService {
     public void setShowOnlySubscribedSources(User user, boolean enabled) {
         user.setShowOnlySubscribedSources(enabled);
         user = userService.updateUserFiltering(user.getId(), enabled);
-
         sourceUpdatePublisher.publishSourceUpdate(user);
-
         log.info("User {} set showOnlySubscribedSources to: {}", user.getId(), enabled);
     }
 
     public List<TopSourceProjection> getTopSources() {
         return sourceRepository.getTopSources();
     }
+
+    public List<SourceDto> getAllSources() {
+        return sourceRepository.findAll().stream()
+                .map(s -> SourceDto.of(s.getId(), s.getName(), s.getUrl(), false))
+                .toList();
+    }
+
+    @Transactional
+    public Source addGlobalSource(String url, SourceType type, String name, TrustLevel trustLevel) {
+        String finalUrl = url;
+
+        if (type == SourceType.TELEGRAM) {
+            finalUrl = FormatUtils.normalizeTelegramUrl(url);
+        }
+
+        if (sourceRepository.findByUrl(finalUrl).isPresent()) {
+            throw new IllegalArgumentException("Source already exists");
+        }
+
+        if (type == SourceType.TELEGRAM) {
+            if (!verifyTelegramChannel(finalUrl)) {
+                throw new TelegramChannelNotFoundException("Telegram channel not found or not accessible: " + url);
+            }
+        }
+
+        Source newSource = new Source();
+        newSource.setUrl(finalUrl);
+        newSource.setType(type != null ? type : SourceType.TELEGRAM);
+        newSource.setName(name != null && !name.trim().isEmpty() ? name.trim() : extractName(finalUrl));
+
+        if (trustLevel != null) {
+            newSource.setTrustLevel(trustLevel);
+        }
+
+        Source source = sourceRepository.save(newSource);
+        log.info("Global source added via Admin: {} of type {}", finalUrl, type);
+        return source;
+    }
+
+    @Transactional
+    public void deleteGlobalSource(Long sourceId) {
+        Source source = sourceRepository.findById(sourceId)
+                .orElseThrow(() -> new SourceNotFoundException("Source not found"));
+
+        sourceRepository.delete(source);
+        log.info("Global source permanently deleted ID: {}", sourceId);
+    }
+
 }

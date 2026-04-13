@@ -10,6 +10,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @RestControllerAdvice
@@ -63,6 +64,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException ex) {
+        log.warn("Response status exception: {} - {}", ex.getStatusCode(), ex.getReason());
+        return ResponseEntity
+                .status(ex.getStatusCode())
+                .body(new ErrorResponse(ex.getStatusCode().value(), ex.getReason() != null ? ex.getReason() : ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

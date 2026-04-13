@@ -12,6 +12,7 @@ export const translations: Translations = {
     'tab.insights': { en: '📊 Insights', ro: '📊 Statistici', ru: '📊 Аналитика' },
     'tab.settings': { en: '⚙️ Settings', ro: '⚙️ Setări', ru: '⚙️ Настройки' },
     'tab.moderator': { en: '🛡️ Mod', ro: '🛡️ Mod', ru: '🛡️ Мод' },
+    'tab.admin': { en: '👑 Admin', ro: '👑 Admin', ru: '👑 Админ' },
     
     // Interests
     'interests.title': { en: 'Your Current Interests', ro: 'Interesele Tale Curente', ru: 'Ваши Текущие Интересы' },
@@ -109,6 +110,36 @@ export const translations: Translations = {
     'mod.article': { en: 'Article', ro: 'Articol', ru: 'Статья' },
     'mod.source': { en: 'Source', ro: 'Sursă', ru: 'Источник' },
     'mod.via': { en: 'via', ro: 'prin', ru: 'через' },
+
+    // Trust Levels
+    'trust.OFFICIAL': { en: 'Official', ro: 'Oficial', ru: 'Официальный' },
+    'trust.VERIFIED_MEDIA': { en: 'Verified Media', ro: 'Presă Verificată', ru: 'Проверенные СМИ' },
+    'trust.INFLUENCER': { en: 'Influencer', ro: 'Influencer', ru: 'Инфлюенсер' },
+    'trust.USER_GENERATED_CONTENT': { en: 'User Generated Content', ro: 'Conținut Generat de Utilizatori', ru: 'Пользовательский Контент' },
+    'trust.SCAM': { en: 'Scam', ro: 'Înșelătorie', ru: 'Скам' },
+
+    // Admin Dashboard
+    'admin.title': { en: 'Admin Dashboard', ro: 'Panou Admin', ru: 'Панель Администратора' },
+    'admin.manage_roles': { en: 'Manage User Roles', ro: 'Gestionează Roluri Utilizatori', ru: 'Управление Ролями' },
+    'admin.user_id': { en: 'User ID', ro: 'ID Utilizator', ru: 'ID Пользователя' },
+    'admin.btn.update': { en: 'Update', ro: 'Actualizează', ru: 'Обновить' },
+    'admin.add_global_source': { en: 'Add Global Source', ro: 'Adaugă Sursă Globală', ru: 'Добавить Глобальный Источник' },
+    'admin.source_url': { en: 'Source URL', ro: 'URL Sursă', ru: 'URL Источника' },
+    'admin.source_name': { en: 'Source Name (Optional)', ro: 'Nume Sursă (Opțional)', ru: 'Имя Источника (Необяз.)' },
+    'admin.btn.add_source': { en: 'Add Source', ro: 'Adaugă Sursa', ru: 'Добавить Источник' },
+    'admin.delete_global_source': { en: 'Delete Global Source', ro: 'Șterge Sursă Globală', ru: 'Удалить Глобальный Источник' },
+    'admin.source_id': { en: 'Source ID', ro: 'ID Sursă', ru: 'ID Источника' },
+    'admin.btn.delete_source': { en: 'Delete Source', ro: 'Șterge Sursa', ru: 'Удалить Источник' },
+    'admin.alert.role_success': { en: 'Role updated successfully', ro: 'Rol actualizat cu succes', ru: 'Роль успешно обновлена' },
+    'admin.alert.role_error': { en: 'Failed to update role. Ensure you have admin privileges.', ro: 'Eroare la actualizarea rolului. Asigură-te că ai privilegii de admin.', ru: 'Не удалось обновить роль. Убедитесь, что у вас есть права администратора.' },
+    'admin.alert.cannot_update_self': { en: 'You cannot update your own role.', ro: 'Nu îți poți actualiza propriul rol.', ru: 'Вы не можете изменить собственную роль.' },
+    'admin.alert.source_add_success': { en: 'Global source added', ro: 'Sursă globală adăugată', ru: 'Глобальный источник добавлен' },
+    'admin.alert.source_add_error': { en: 'Failed to add source. Ensure you have admin privileges.', ro: 'Eroare la adăugarea sursei. Asigură-te că ai privilegii de admin.', ru: 'Не удалось добавить источник. Убедитесь, что у вас есть права администратора.' },
+    'admin.alert.source_exists': { en: 'This source already exists in the system.', ro: 'Această sursă există deja în sistem.', ru: 'Этот источник уже существует в системе.' },
+    'admin.alert.invalid_link': { en: 'Invalid Telegram link or channel not accessible.', ro: 'Link Telegram invalid sau canal inaccesibil.', ru: 'Неверная ссылка Telegram или канал недоступен.' },
+    'admin.alert.source_del_success': { en: 'Global source deleted', ro: 'Sursă globală ștearsă', ru: 'Глобальный источник удален' },
+    'admin.alert.source_del_error': { en: 'Failed to delete source. Ensure you have admin privileges.', ro: 'Eroare la ștergerea sursei. Asigură-te că ai privilegii de admin.', ru: 'Не удалось удалить источник. Убедитесь, что у вас есть права администратора.' },
+    'admin.select_source': { en: 'Select a source...', ro: 'Selectează o sursă...', ru: 'Выберите источник...' },
 
     // Errors & Global
     'loading': { en: 'Loading...', ro: 'Se încarcă...', ru: 'Загрузка...' },

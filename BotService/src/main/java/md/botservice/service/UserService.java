@@ -12,6 +12,7 @@ import md.botservice.exceptions.UserNotFoundException;
 import md.botservice.models.Language;
 import md.botservice.models.Source;
 import md.botservice.models.User;
+import md.botservice.models.UserRole;
 import md.botservice.producers.SourceUpdatePublisher;
 import md.botservice.repository.UserRepository;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -47,6 +48,7 @@ public class UserService {
         user.setFirstName(telegramUser.getFirstName());
         user.setRegisteredAt(LocalDateTime.now());
         user.setLastActiveAt(LocalDateTime.now());
+        user.setRole(UserRole.USER);
         return repository.save(user);
     }
 
@@ -160,6 +162,18 @@ public class UserService {
         sourceUpdatePublisher.publishSourceUpdate(user);
 
         log.info("User {} {} read-all for source {}", userId, readAll ? "enabled" : "disabled", sourceId);
+    }
+
+    public User updateUserRole(Long adminId, Long userId, UserRole role) {
+        if (adminId.equals(userId)) {
+            log.warn("Admin {} attempted to update their own role", adminId);
+            throw new IllegalArgumentException("You cannot update your own role");
+        }
+
+        User user = findById(userId);
+        user.setRole(role);
+        log.info("User {} role updated to {}", userId, role);
+        return repository.save(user);
     }
 
     @Transactional(readOnly = true)

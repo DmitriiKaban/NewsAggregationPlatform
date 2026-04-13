@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { tr, type Language } from './i18n/translations.ts';
+import { tr, type Language } from './i18n/translations';
 import { ReportModal } from './components/ReportModal';
 import { ModeratorDashboard } from './pages/ModeratorDashboard';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { InterestsTab } from './pages/InterestsTab';
 import { SourcesTab } from './pages/SourcesTab';
 import { InsightsTab } from './pages/InsightsTab';
@@ -32,7 +33,7 @@ export default function App() {
     const [dauStats, setDauStats] = useState<DauData[]>([]);
     const [topSources, setTopSources] = useState<TopSource[]>([]);
     
-    const [activeTab, setActiveTab] = useState<'interests' | 'sources' | 'insights' | 'settings' | 'moderation'>('interests');
+    const [activeTab, setActiveTab] = useState<'interests' | 'sources' | 'insights' | 'settings' | 'moderation' | 'admin'>('interests');
     const [userRole, setUserRole] = useState<'USER' | 'MODERATOR' | 'ADMIN'>('USER');
     
     const [reportModalState, setReportModalState] = useState<{isOpen: boolean, sourceId?: number, articleId?: number}>({ isOpen: false });
@@ -341,11 +342,18 @@ export default function App() {
                             {tr('tab.moderator', lang)}
                         </TabButton>
                     )}
+
+                    {userRole === 'ADMIN' && (
+                        <TabButton active={activeTab === 'admin'} onClick={() => { setActiveTab('admin'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>}>
+                            {tr('tab.admin', lang)}
+                        </TabButton>
+                    )}
                 </div>
             </div>
 
             <div style={{padding: '0 20px'}}>
                 {activeTab === 'moderation' && <ModeratorDashboard moderatorId={user.id!} colors={colors} lang={lang} />}
+                {activeTab === 'admin' && <AdminDashboard colors={colors} lang={lang} adminId={user.id!} />}
                 {activeTab === 'interests' && <InterestsTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} interestTags={interestTags} setInterestTags={setInterestTags} isEditingInterests={isEditingInterests} setIsEditingInterests={setIsEditingInterests} recommendations={recommendations} handleAddSource={handleAddSource} />}
                 {activeTab === 'sources' && <SourcesTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} sources={sources} handleAddSource={() => handleAddSource()} handleRemoveSource={handleRemoveSource} toggleReadAll={toggleReadAllState} setReportModalState={setReportModalState} />}
                 {activeTab === 'insights' && globalInsights && <InsightsTab lang={lang} colors={colors} apiBaseUrl={ENV.API_BASE_URL} globalInsights={globalInsights} userInsights={userInsights} dauStats={dauStats} topSources={topSources} />}
