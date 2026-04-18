@@ -39,8 +39,10 @@ export default function App() {
     const [reportModalState, setReportModalState] = useState<{isOpen: boolean, sourceId?: number, articleId?: number}>({ isOpen: false });
 
     const [loading, setLoading] = useState(true);
-    const [backendReachable, setBackendReachable] = useState(true);
     const [languageLoaded, setLanguageLoaded] = useState(false);
+    const [backendReachable, setBackendReachable] = useState(true);
+    const [profileLoaded, setProfileLoaded] = useState(true);
+    const [isRegistered, setIsRegistered] = useState(true);
     
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -59,6 +61,13 @@ export default function App() {
             api.getUserDashboard(user.id, controller.signal).catch(() => null),
         ])
             .then(([profileData, recommendationsData, globalData, userData]) => {
+                if (!profileData || profileData.error || profileData.role === undefined) {
+                    setIsRegistered(false);
+                    setLanguageLoaded(true);
+                    setLoading(false);
+                    return; 
+                }
+
                 const backendLang = profileData.language?.toLowerCase();
 
                 if (backendLang && ['en', 'ro', 'ru'].includes(backendLang)) {
@@ -102,12 +111,22 @@ export default function App() {
                 }
 
                 setRecommendations(recommendationsData as Recommendation[]);
+                
+                setProfileLoaded(true);
                 setLoading(false);
                 setBackendReachable(true);
             })
             .catch(err => {
                 if (err.name !== 'AbortError') {
-                    setBackendReachable(false);
+                    const isNetworkFailure = err instanceof TypeError && err.message.toLowerCase().includes('fetch');
+                    
+                    if (isNetworkFailure) {
+                        setProfileLoaded(false);
+                        setBackendReachable(false);
+                    } else {
+                        setIsRegistered(false);
+                        setProfileLoaded(true);
+                    }
                 }
                 setLanguageLoaded(true);
                 setLoading(false);
@@ -294,7 +313,7 @@ export default function App() {
                     <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
                     <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
                 </svg>
-                <div style={{fontSize: '16px', fontWeight: '500'}}>{tr('loading', lang)}</div>
+                <div style={{fontSize: '16px', fontWeight: '500'}}>{tr('loading', lang) || 'Loading...'}</div>
                 <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
             </div>
         </div>
@@ -308,13 +327,58 @@ export default function App() {
                     <line x1="15" y1="9" x2="9" y2="15"></line>
                     <line x1="9" y1="9" x2="15" y2="15"></line>
                 </svg>
-                <h2 style={{fontSize: '24px', fontWeight: '700', margin: '0 0 12px 0'}}>{tr('error.user_not_found', lang)}</h2>
-                <p style={{fontSize: '15px', color: colors.hint, lineHeight: 1.5, margin: '0 0 24px 0'}}>{tr('error.open_from_telegram', lang)}</p>
+                <h2 style={{fontSize: '24px', fontWeight: '700', margin: '0 0 12px 0'}}>{tr('error.user_not_found', lang) || 'User Not Found'}</h2>
+                <p style={{fontSize: '15px', color: colors.hint, lineHeight: 1.5, margin: '0 0 24px 0'}}>{tr('error.open_from_telegram', lang) || 'Please open this app directly from Telegram.'}</p>
                 {telegramError && (
                     <div style={{padding: '16px', background: `${colors.danger}15`, borderRadius: '12px', fontSize: '13px', color: colors.danger, textAlign: 'left', border: `1px solid ${colors.danger}30`}}>
                         <strong>Error:</strong> {telegramError}
                     </div>
                 )}
+            </div>
+        </div>
+    );
+
+    if (!isRegistered) return (
+        <div style={{ minHeight: '100vh', background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+            <div style={{textAlign: 'center', maxWidth: '400px', color: colors.text}}>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={colors.button} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom: '24px'}}>
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <line x1="19" y1="8" x2="19" y2="14"></line>
+                    <line x1="22" y1="11" x2="16" y2="11"></line>
+                </svg>
+                <h2 style={{fontSize: '24px', fontWeight: '700', margin: '0 0 12px 0'}}>Account Not Found</h2>
+                <p style={{fontSize: '15px', color: colors.hint, lineHeight: 1.5, margin: '0 0 24px 0'}}>
+                    It looks like you haven't registered yet! Please, send <strong>/start</strong> to the bot in Telegram to create your profile before using the mini app.
+                </p>
+                <button 
+                    onClick={() => tg?.close()} 
+                    style={{ background: colors.button, color: colors.bg, border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                >
+                    Close App
+                </button>
+            </div>
+        </div>
+    );
+
+    if (!profileLoaded) return (
+        <div style={{ minHeight: '100vh', background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+            <div style={{textAlign: 'center', maxWidth: '400px', color: colors.text}}>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={colors.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom: '24px'}}>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <h2 style={{fontSize: '24px', fontWeight: '700', margin: '0 0 12px 0'}}>Server Unreachable</h2>
+                <p style={{fontSize: '15px', color: colors.hint, lineHeight: 1.5, margin: '0 0 24px 0'}}>
+                    We couldn't load your profile. Please, check your internet connection.
+                </p>
+                <button 
+                    onClick={() => window.location.reload()} 
+                    style={{ background: colors.button, color: colors.bg, border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                >
+                    Retry
+                </button>
             </div>
         </div>
     );
@@ -327,21 +391,13 @@ export default function App() {
                 <div 
                     onClick={() => setIsMenuOpen(false)}
                     style={{ 
-                        position: 'fixed', 
-                        top: 0, 
-                        left: 0, 
-                        width: '100vw', 
-                        height: '100vh', 
-                        zIndex: 90, 
-                        background: 'rgba(0,0,0,0.15)', 
-                        backdropFilter: 'blur(3px)',
-                        WebkitBackdropFilter: 'blur(3px)'
+                        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 90, 
+                        background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)'
                     }}
                 />
             )}
 
             <div style={{padding: '24px 20px 16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                
                 <div>
                     <h1 style={{fontSize: '28px', fontWeight: '800', margin: '0 0 6px 0', color: colors.text, letterSpacing: '-0.5px'}}>
                         {tr('header.greeting', lang, {name: displayName})}
@@ -353,17 +409,9 @@ export default function App() {
                     <button 
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         style={{
-                            background: isMenuOpen ? colors.secondaryBg : 'transparent',
-                            border: 'none',
-                            padding: '10px',
-                            borderRadius: '12px',
-                            color: colors.text,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            WebkitTapHighlightColor: 'transparent'
+                            background: isMenuOpen ? colors.secondaryBg : 'transparent', border: 'none', padding: '10px',
+                            borderRadius: '12px', color: colors.text, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', transition: 'all 0.2s ease', WebkitTapHighlightColor: 'transparent'
                         }}
                     >
                         {isMenuOpen ? (
@@ -375,19 +423,9 @@ export default function App() {
 
                     {isMenuOpen && (
                         <div style={{
-                            position: 'absolute',
-                            top: '56px',
-                            right: '0',
-                            width: '240px',
-                            background: colors.secondaryBg,
-                            borderRadius: '16px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-                            padding: '8px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            border: `1px solid ${colors.bg}`,
-                            transformOrigin: 'top right',
+                            position: 'absolute', top: '56px', right: '0', width: '240px', background: colors.secondaryBg,
+                            borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', padding: '8px', display: 'flex',
+                            flexDirection: 'column', gap: '4px', border: `1px solid ${colors.bg}`, transformOrigin: 'top right',
                             animation: 'menuFadeIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                         }}>
                             <TabButton variant="menu" active={activeTab === 'interests'} onClick={() => handleTabSwitch('interests')} colors={colors} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>}>

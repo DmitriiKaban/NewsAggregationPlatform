@@ -17,7 +17,7 @@ export const ChannelAvatar = ({ url, name, size = 48, fontSize = 18, apiBaseUrl 
     useEffect(() => {
         if (!handle) return;
         
-        fetch(`${apiBaseUrl}/sources/avatar?handle=${handle}`, {
+        fetch(`${apiBaseUrl}/api/sources/avatar?handle=${handle}`, {
             headers: {"ngrok-skip-browser-warning": "69420"}
         })
         .then(r => {
