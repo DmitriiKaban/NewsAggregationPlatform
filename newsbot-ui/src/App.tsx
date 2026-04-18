@@ -41,6 +41,8 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [backendReachable, setBackendReachable] = useState(true);
     const [languageLoaded, setLanguageLoaded] = useState(false);
+    
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     useEffect(() => {
         if (!user?.id) {
@@ -174,6 +176,12 @@ export default function App() {
             tg?.MainButton.hide();
         }
     }, [activeTab, isEditingInterests, interestTags, user?.id, backendReachable, isTelegramEnvironment, lang, tg]);
+
+    const handleTabSwitch = (tab: any) => {
+        setActiveTab(tab);
+        setIsEditingInterests(false);
+        setIsMenuOpen(false);
+    };
 
     const toggleStrictModeState = async () => {
         if (!backendReachable || !user?.id) return;
@@ -312,41 +320,104 @@ export default function App() {
     );
 
     return (
-        <div style={{ minHeight: '100vh', background: colors.bg, color: colors.text, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', paddingBottom: '40px' }}>
+        <div style={{ minHeight: '100vh', background: colors.bg, color: colors.text, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', paddingBottom: '40px', position: 'relative' }}>
             <ReportModal lang={lang} isOpen={reportModalState.isOpen} onClose={() => setReportModalState({ isOpen: false })} sourceId={reportModalState.sourceId} articleId={reportModalState.articleId} currentUserId={user.id!} colors={colors} />
 
-            <div style={{padding: '24px 20px 20px 20px'}}>
-                <h1 style={{fontSize: '28px', fontWeight: '800', margin: '0 0 6px 0', color: colors.text, letterSpacing: '-0.5px'}}>
-                    {tr('header.greeting', lang, {name: displayName})}
-                </h1>
-                <p style={{fontSize: '15px', color: colors.hint, margin: 0, fontWeight: '500'}}>{tr('header.subtitle', lang)}</p>
-            </div>
+            {isMenuOpen && (
+                <div 
+                    onClick={() => setIsMenuOpen(false)}
+                    style={{ 
+                        position: 'fixed', 
+                        top: 0, 
+                        left: 0, 
+                        width: '100vw', 
+                        height: '100vh', 
+                        zIndex: 90, 
+                        background: 'rgba(0,0,0,0.15)', 
+                        backdropFilter: 'blur(3px)',
+                        WebkitBackdropFilter: 'blur(3px)'
+                    }}
+                />
+            )}
 
-            <div style={{ padding: '10px 16px', marginBottom: '20px', position: 'sticky', top: 0, background: colors.bg, zIndex: 10, width: '100%', overflow: 'hidden' }}>
-                <div className="scrollable-tabs" style={{ display: 'flex', width: '100%', background: colors.secondaryBg, borderRadius: '14px', padding: '6px', gap: '4px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                    <TabButton active={activeTab === 'interests'} onClick={() => { setActiveTab('interests'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>}>
-                        {tr('tab.interests', lang)}
-                    </TabButton>
-                    <TabButton active={activeTab === 'sources'} onClick={() => { setActiveTab('sources'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>}>
-                        {tr('tab.sources', lang)}
-                    </TabButton>
-                    <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>}>
-                        {tr('tab.insights', lang)}
-                    </TabButton>
-                    <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>}>
-                        {tr('tab.settings', lang)}
-                    </TabButton>
-                    
-                    {(userRole === 'MODERATOR' || userRole === 'ADMIN') && (
-                        <TabButton active={activeTab === 'moderation'} onClick={() => { setActiveTab('moderation'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}>
-                            {tr('tab.moderator', lang)}
-                        </TabButton>
-                    )}
+            <div style={{padding: '24px 20px 16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                
+                <div>
+                    <h1 style={{fontSize: '28px', fontWeight: '800', margin: '0 0 6px 0', color: colors.text, letterSpacing: '-0.5px'}}>
+                        {tr('header.greeting', lang, {name: displayName})}
+                    </h1>
+                    <p style={{fontSize: '15px', color: colors.hint, margin: 0, fontWeight: '500'}}>{tr('header.subtitle', lang)}</p>
+                </div>
+                
+                <div style={{ position: 'relative', zIndex: 95 }}>
+                    <button 
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        style={{
+                            background: isMenuOpen ? colors.secondaryBg : 'transparent',
+                            border: 'none',
+                            padding: '10px',
+                            borderRadius: '12px',
+                            color: colors.text,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease',
+                            WebkitTapHighlightColor: 'transparent'
+                        }}
+                    >
+                        {isMenuOpen ? (
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        ) : (
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                        )}
+                    </button>
 
-                    {userRole === 'ADMIN' && (
-                        <TabButton active={activeTab === 'admin'} onClick={() => { setActiveTab('admin'); setIsEditingInterests(false); }} colors={colors} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>}>
-                            {tr('tab.admin', lang)}
-                        </TabButton>
+                    {isMenuOpen && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '56px',
+                            right: '0',
+                            width: '240px',
+                            background: colors.secondaryBg,
+                            borderRadius: '16px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                            padding: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            border: `1px solid ${colors.bg}`,
+                            transformOrigin: 'top right',
+                            animation: 'menuFadeIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                        }}>
+                            <TabButton variant="menu" active={activeTab === 'interests'} onClick={() => handleTabSwitch('interests')} colors={colors} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>}>
+                                {tr('tab.interests', lang)}
+                            </TabButton>
+                            <TabButton variant="menu" active={activeTab === 'sources'} onClick={() => handleTabSwitch('sources')} colors={colors} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>}>
+                                {tr('tab.sources', lang)}
+                            </TabButton>
+                            <TabButton variant="menu" active={activeTab === 'insights'} onClick={() => handleTabSwitch('insights')} colors={colors} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>}>
+                                {tr('tab.insights', lang)}
+                            </TabButton>
+                            
+                            <div style={{ height: '1px', background: colors.bg, margin: '4px 8px' }}></div>
+                            
+                            <TabButton variant="menu" active={activeTab === 'settings'} onClick={() => handleTabSwitch('settings')} colors={colors} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>}>
+                                {tr('tab.settings', lang)}
+                            </TabButton>
+                            
+                            {(userRole === 'MODERATOR' || userRole === 'ADMIN') && (
+                                <TabButton variant="menu" active={activeTab === 'moderation'} onClick={() => handleTabSwitch('moderation')} colors={colors} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}>
+                                    {tr('tab.moderator', lang)}
+                                </TabButton>
+                            )}
+
+                            {userRole === 'ADMIN' && (
+                                <TabButton variant="menu" active={activeTab === 'admin'} onClick={() => handleTabSwitch('admin')} colors={colors} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>}>
+                                    {tr('tab.admin', lang)}
+                                </TabButton>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -364,8 +435,10 @@ export default function App() {
                 * { box-sizing: border-box; }
                 body { margin: 0; padding: 0; overflow-x: hidden; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .scrollable-tabs::-webkit-scrollbar { display: none; }
-                .scrollable-tabs { scrollbar-width: none; -ms-overflow-style: none; }
+                @keyframes menuFadeIn { 
+                    from { opacity: 0; transform: scale(0.95) translateY(-10px); } 
+                    to { opacity: 1; transform: scale(1) translateY(0); } 
+                }
             `}</style>
         </div>
     );

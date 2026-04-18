@@ -7,34 +7,49 @@ interface Props {
     children: React.ReactNode;
     colors: ThemeColors;
     icon?: React.ReactNode;
+    variant?: 'tab' | 'menu';
 }
 
-export const TabButton = ({ active, onClick, children, colors, icon }: Props) => {
+export const TabButton = ({ active, onClick, children, colors, icon, variant = 'tab' }: Props) => {
     const cleanChildren = typeof children === 'string' 
         ? children.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim() 
         : children;
 
+    const isMenu = variant === 'menu';
+
     return (
         <button onClick={onClick} style={{
-            flex: '1 1 0',
-            minWidth: 0,
-            padding: '8px 4px',
+            flex: isMenu ? 'none' : '1 1 auto',
+            width: isMenu ? '100%' : 'auto',
+            padding: isMenu ? '12px 16px' : '8px 12px',
             background: active ? colors.bg : 'transparent', 
             border: 'none',
             borderRadius: '10px', 
             color: active ? colors.text : colors.hint, 
-            fontSize: '12px',
+            fontSize: isMenu ? '15px' : '13px',
             fontWeight: '700',
             cursor: 'pointer', 
-            transition: 'all 0.21s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+            transition: 'all 0.2s ease', 
             display: 'flex', 
-            justifyContent: 'center', 
+            justifyContent: isMenu ? 'flex-start' : 'center', 
             alignItems: 'center',
-            gap: '4px',
-            boxShadow: active ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
+            gap: '12px',
+            boxShadow: active && !isMenu ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+            whiteSpace: 'nowrap',
+            WebkitTapHighlightColor: 'transparent'
         }}>
-            {icon && <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>{icon}</span>}
-            <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {icon && (
+                <span style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    flexShrink: 0, 
+                    color: active ? colors.button : 'inherit',
+                    transition: 'color 0.2s'
+                }}>
+                    {icon}
+                </span>
+            )}
+            <span style={{ display: 'block' }}>
                 {cleanChildren}
             </span>
         </button>
