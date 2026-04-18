@@ -90,10 +90,10 @@ Each service utilizes its respective testing frameworks.
 *(Note: `AIRecommendationsService` requires Docker to be running for Testcontainers integration).*
 ```bash
 cd BotService
-./mvnw test
+./mvnw install test
 
 cd ../AIRecommendationsService
-./mvnw test
+./mvnw install test
 ```
 
 **Scraper Service:**
