@@ -28,15 +28,10 @@ spec:
           envFrom:
             - secretRef:
                 name: newsbot-secrets
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: tg-bot-service
-spec:
-  type: ClusterIP
-  selector:
-    app: tg-bot
-  ports:
-    - port: 8016
-      targetPort: 8016
+          resources:
+            requests:
+              cpu: "100m"    # 0.1 CPU, HPA uses this for math
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

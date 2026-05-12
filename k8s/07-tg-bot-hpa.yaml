@@ -1,0 +1,32 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tg-bot-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tg-bot
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70 # Scale up when average CPU goes > 70%
+  behavior:
+    scaleDown:
+      # K8s will wait for CPU to remain low for 5 minutes (300s) before terminating pods.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60 # Only kill 1 pod per minute during scale down
+    scaleUp:
+      stabilizationWindowSeconds: 0 # Scale up immediately
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15

@@ -70,7 +70,7 @@ export default function App() {
 
                 const backendLang = profileData.language?.toLowerCase();
 
-                if (backendLang && ['en', 'ro', 'ru'].includes(backendLang)) {
+                if (backendLang && ['ru', 'en', 'ro'].includes(backendLang)) {
                     setLang(backendLang as Language);
                 }
                 setLanguageLoaded(true);
