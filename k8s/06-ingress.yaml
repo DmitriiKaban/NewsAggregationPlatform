@@ -3,7 +3,6 @@ kind: Ingress
 metadata:
   name: newsbot-api-gateway
   annotations:
-    # CORS
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "https://dmitriikaban.github.io"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST"

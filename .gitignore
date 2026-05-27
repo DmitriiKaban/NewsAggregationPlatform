@@ -36,6 +36,9 @@ ScraperService/newsbot_session.session
 ScraperService/.pytest_cache
 ScraperService/__pycache__
 
+# K8s secrets (real credentials — use 01-secrets.yaml-structure as template)
+k8s/01-secrets.yaml
+
 
 # Java/Spring specific ignores
 /target/       # Maven build output directory
