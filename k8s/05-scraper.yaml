@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: scraper
-          image: dimaubuntu/newsbot-scraper:v2
-          imagePullPolicy: Always
+          image: newsbot-scraper:local
+          imagePullPolicy: Never
           env:
             - name: POSTGRES_HOST
               value: "news-postgres"

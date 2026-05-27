@@ -36,6 +36,8 @@ ScraperService/newsbot_session.session
 ScraperService/.pytest_cache
 ScraperService/__pycache__
 
+k8s/01-secrets.yaml
+
 
 # Java/Spring specific ignores
 /target/       # Maven build output directory
