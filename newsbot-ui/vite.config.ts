@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   base: '/NewsAggregationPlatform/',
   
-  envDir: path.resolve(__dirname, '../common'), 
+  envDir: path.resolve(__dirname, '../common'),
+  envPrefix: ['VITE_', 'API_'],
   
   build: {
     outDir: 'dist',

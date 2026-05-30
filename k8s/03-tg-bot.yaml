@@ -15,7 +15,7 @@ spec:
       containers:
         - name: tg-bot
           image: dimaubuntu/newsbot-tg-bot:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8016
           env:

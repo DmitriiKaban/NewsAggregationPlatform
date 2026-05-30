@@ -29,7 +29,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final StateMessageHandler stateMessageHandler;
     private final String botUsername;
 
-    @Value("${api.base.url:https://donny-subevergreen-agreeably.ngrok-free.dev/api}")
+    @Value("${api.base.url:https://donny-subevergreen-agreeably.ngrok-free.dev}")
     private String apiBaseUrl;
 
     public TelegramBotService(
@@ -134,7 +134,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         String cleanTitle = escapeHtml(event.title());
 
-        String trackingUrl = apiBaseUrl + "/r/" + event.userId() + "/" + event.postId();
+        String trackingUrl = apiBaseUrl + "/api/r/" + event.userId() + "/" + event.postId();
 
         String text = cleanTitle + "\n\n<a href=\"" + trackingUrl + "\">Read More</a>";
         message.setText(text);

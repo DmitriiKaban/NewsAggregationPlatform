@@ -15,7 +15,7 @@ spec:
       containers:
         - name: ai-service
           image: dimaubuntu/newsbot-ai:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: POSTGRES_HOST
               value: "news-postgres"
